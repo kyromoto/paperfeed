@@ -1,3 +1,10 @@
+## [1.6.9](https://github.com/kyromoto/paperfeed/compare/v1.6.8...v1.6.9) (2026-07-14)
+
+
+### Bug Fixes
+
+* added deduplication keys ([e0a8d3a](https://github.com/kyromoto/paperfeed/commit/e0a8d3ac11ffb6315a2e02e2e0f636f48e916c4a))
+
 ## [1.6.8](https://github.com/kyromoto/paperfeed/compare/v1.6.7...v1.6.8) (2026-07-14)
 
 
