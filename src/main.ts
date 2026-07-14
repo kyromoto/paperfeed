@@ -176,11 +176,15 @@ const ROOT_LOGGER_KEY = "app";
 			logger
 				.getChild([collectChangesQueue.name, job.id ?? "unknown-id"])
 				.info(`${files.length} files collected`, { job, files });
+			const dateStr = new Date().toISOString();
 			await processChangesQueue.addBulk(
 				files.map((file) => ({
 					name: "process-changes",
 					data: { accountId: job.data.accountId, file },
-					opts: { jobId: `process-changes-${job.data.accountId}-${file.id}` },
+					opts: {
+						jobId: `process-changes-${job.data.accountId}-${file.id}-${dateStr}`,
+						deduplication: { id: `process-changes-${job.data.accountId}-${file.id}` },
+					},
 				})),
 			);
 		},

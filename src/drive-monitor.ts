@@ -92,7 +92,8 @@ export class DriveMonitor {
 				this.currentRenewJobId = null;
 			}
 
-			const renewJobId = `renew-channel-${this.account.id}-${now}`;
+			const dateStr = new Date(now).toISOString();
+			const renewJobId = `renew-channel-${this.account.id}-${dateStr}`;
 			await this.renewChannelQueue.add(
 				"renew-channel",
 				{ accountId: this.account.id },

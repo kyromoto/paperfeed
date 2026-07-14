@@ -1,3 +1,4 @@
+
 import type { Logger } from "@logtape/logtape";
 import type bullmq from "bullmq";
 import type { Request, Response } from "express";
@@ -11,10 +12,13 @@ export const handleWebhook = (
 	queue: bullmq.Queue<CollectChangesJobPayload>,
 	monitors: Map<string, DriveMonitor>
 ) => {
+
 	return async (req: Request, res: Response) => {
+
 		try {
 			logger.info("Handling request ...");
 
+			const now = Date.now();
 			const channelId = req.get("X-Goog-Channel-Id");
 			const state = req.get("X-Goog-Resource-State");
 
@@ -40,15 +44,16 @@ export const handleWebhook = (
 				throw new AcceptableWebhookError(msg, 200, "OK");
 			}
 
-			const job = {
-				name: queue.name,
-				data: { accountId: account.id },
-				opts: { jobId: `collect-changes-${account.id}` },
-			}
-
-			logger.info(`${account.name}: Received webhook for state ${state} ... adding job to queue`, { job });
-
-			await queue.add(job.name, job.data, job.opts);
+			logger.info(`${account.name}: Received webhook for state ${state} ... adding job to queue`);
+			const isoDate = new Date(now).toISOString();
+			await queue.add(
+				queue.name,
+				{ accountId: account.id },
+				{
+					jobId: `collect-changes-${account.id}-${isoDate}`,
+					deduplication: { id: `collect-changes-${account.id}`}
+				}
+			);
 
 			res.status(200).send("OK");
 		} catch (error: unknown) {

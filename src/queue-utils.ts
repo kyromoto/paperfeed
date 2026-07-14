@@ -12,6 +12,7 @@ export async function collectOutstandingJobs(
 	processors: Map<string, FileProcessor>,
 	queueName: string,
 ): Promise<ProcessFileBulkJob[]> {
+	const dateStr = new Date().toISOString();
 	return (
 		await Promise.all(
 			Array.from(processors.entries()).map(async ([accountId, processor]) => {
@@ -19,7 +20,10 @@ export async function collectOutstandingJobs(
 				return files.map<ProcessFileBulkJob>((file) => ({
 					name: queueName,
 					data: { accountId, file },
-					opts: { jobId: `process-changes-${accountId}-${file.id}` },
+					opts: {
+						jobId: `process-changes-${accountId}-${file.id}-${dateStr}`,
+						deduplication: { id: `process-changes-${accountId}-${file.id}` }
+					}
 				}));
 			}),
 		)
