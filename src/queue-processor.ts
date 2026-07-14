@@ -33,7 +33,7 @@ export function makeCollectChangesQueueProcessor(
 export function makeProcessChangesQueueProcessor(processors: Map<string, FileProcessor>) {
 	return async (job: Job<ProcessChangesJobPayload>) => {
 		
-		await job.log(`Get processor for accountId ${job.data.accountId} ...`);
+		await job.log(`Finding processor by accountId ...`);
 		const processor = processors.get(job.data.accountId);
 
 		if (!processor) {
@@ -42,44 +42,37 @@ export function makeProcessChangesQueueProcessor(processors: Map<string, FilePro
 
 		let step: ProcessStep | undefined = job.data.step;
 
-		await job.log(`Starting file processing ...`);
 		while (step !== "done") {
 			switch (step) {
 				case undefined: {
 					await job.log(`Donwloading file from GDrive ...`);
 					await processor.downloadFileFromDrive(job.data.file);
 					step = "downloaded";
-					await job.updateData({ ...job.data, step });
-					await job.updateProgress({ step });
 					break;
 				}
 				case "downloaded": {
 					await job.log(`Uploading file to Paperless ...`);
 					await processor.uploadFileToPaperless(job.data.file);
 					step = "uploaded";
-					await job.updateData({ ...job.data, step });
-					await job.updateProgress({ step });
 					break;
 				}
 				case "uploaded": {
 					await job.log(`Moving file to destination folder ...`);
 					await processor.moveFile(job.data.file);
 					step = "moved";
-					await job.updateData({ ...job.data, step });
-					await job.updateProgress({ step });
 					break;
 				}
 				case "moved": {
 					await job.log(`Finishing file processing ...`);
 					step = "done";
-					await job.updateData({ ...job.data, step });
-					await job.updateProgress({ step });
 					break;
 				}
 				default: {
 					throw new Error(`Invalid step ${step}`);
 				}
 			}
+
+			await job.updateData({ ...job.data, step });
 		}
 	};
 }
