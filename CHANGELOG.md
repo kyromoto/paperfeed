@@ -1,3 +1,10 @@
+## [1.6.11](https://github.com/kyromoto/paperfeed/compare/v1.6.10...v1.6.11) (2026-07-14)
+
+
+### Bug Fixes
+
+* activate debounce mode for  collect changes jobs triggered by webhooks ([c1caf5a](https://github.com/kyromoto/paperfeed/commit/c1caf5ada35a1d606574082f2c09279a2532737e))
+
 ## [1.6.10](https://github.com/kyromoto/paperfeed/compare/v1.6.9...v1.6.10) (2026-07-14)
 
 
