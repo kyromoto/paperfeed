@@ -18,13 +18,8 @@ export const handleWebhook = (
 			const channelId = req.get("X-Goog-Channel-Id");
 			const state = req.get("X-Goog-Resource-State");
 
-			if (!channelId) {
-				const msg = `Received webhook without channel id ... ignoring`;
-				throw new AcceptableWebhookError(msg, 200, "OK");
-			}
-
-			if (!state) {
-				const msg = `Received webhook without state ... ignoring`;
+			if (!channelId || !state) {
+				const msg = `Received request without required headers ${JSON.stringify({ channelId, state })} ... ignoring`;
 				throw new AcceptableWebhookError(msg, 200, "OK");
 			}
 
@@ -36,7 +31,7 @@ export const handleWebhook = (
 			);
 
 			if (!account) {
-				const msg = `Received webhook for unknown account id ${accountId} ... ignoring`;
+				const msg = `No account found for channel id = ${channelId} ... ignoring`;
 				throw new AcceptableWebhookError(msg, 200, "OK");
 			}
 
@@ -45,13 +40,15 @@ export const handleWebhook = (
 				throw new AcceptableWebhookError(msg, 200, "OK");
 			}
 
-			await queue.add(
-				queue.name,
-				{ accountId: account.id },
-				{
-					jobId: `collect-changes-${account.id}`,
-				},
-			);
+			const job = {
+				name: queue.name,
+				data: { accountId: account.id },
+				opts: { jobId: `collect-changes-${account.id}` },
+			}
+
+			logger.info(`${account.name}: Received webhook for state ${state} ... adding job to queue`, { job });
+
+			await queue.add(job.name, job.data, job.opts);
 
 			res.status(200).send("OK");
 		} catch (error: unknown) {

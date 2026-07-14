@@ -21,7 +21,7 @@ export type CollectChangesJobPayload = {
 
 export type CollectChangesJobResult = DriveFile[];
 
-export type ProcessStep = "downloaded" | "uploaded" | "moved";
+export type ProcessStep = "downloaded" | "uploaded" | "moved" | "done";
 
 export type ProcessChangesJobPayload = {
 	accountId: string;

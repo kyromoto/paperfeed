@@ -32,6 +32,8 @@ export function makeCollectChangesQueueProcessor(
 
 export function makeProcessChangesQueueProcessor(processors: Map<string, FileProcessor>) {
 	return async (job: Job<ProcessChangesJobPayload>) => {
+		
+		await job.log(`Get processor for accountId ${job.data.accountId} ...`);
 		const processor = processors.get(job.data.accountId);
 
 		if (!processor) {
@@ -40,24 +42,38 @@ export function makeProcessChangesQueueProcessor(processors: Map<string, FilePro
 
 		let step: ProcessStep | undefined = job.data.step;
 
-		while (step !== "moved") {
+		await job.log(`Starting file processing ...`);
+		while (step !== "done") {
 			switch (step) {
 				case undefined: {
+					await job.log(`Donwloading file from GDrive ...`);
 					await processor.downloadFileFromDrive(job.data.file);
 					step = "downloaded";
 					await job.updateData({ ...job.data, step });
+					await job.updateProgress({ step });
 					break;
 				}
 				case "downloaded": {
+					await job.log(`Uploading file to Paperless ...`);
 					await processor.uploadFileToPaperless(job.data.file);
 					step = "uploaded";
 					await job.updateData({ ...job.data, step });
+					await job.updateProgress({ step });
 					break;
 				}
 				case "uploaded": {
+					await job.log(`Moving file to destination folder ...`);
 					await processor.moveFile(job.data.file);
 					step = "moved";
 					await job.updateData({ ...job.data, step });
+					await job.updateProgress({ step });
+					break;
+				}
+				case "moved": {
+					await job.log(`Finishing file processing ...`);
+					step = "done";
+					await job.updateData({ ...job.data, step });
+					await job.updateProgress({ step });
 					break;
 				}
 				default: {
@@ -71,12 +87,15 @@ export function makeProcessChangesQueueProcessor(processors: Map<string, FilePro
 
 export function makeRenewChannelQueueProcessor(monitors: Map<string, DriveMonitor>) {
 	return async (job: Job<RenewChannelJobPayload>) => {
+
+		await job.log(`Find monitor for accountId ${job.data.accountId} ...`);
 		const monitor = monitors.get(job.data.accountId);
 
 		if (!monitor) {
 			throw new Error(`No monitor found for accountId ${job.data.accountId}`);
 		}
 
+		await job.log(`Starting monitor for accountId ${job.data.accountId} ...`);
 		await monitor.start();
 	};
 }
