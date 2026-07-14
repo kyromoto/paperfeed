@@ -1,3 +1,10 @@
+## [1.6.7](https://github.com/kyromoto/paperfeed/compare/v1.6.6...v1.6.7) (2026-07-14)
+
+
+### Bug Fixes
+
+* align ioredis version with bullmq's bundled dependency ([b0c0155](https://github.com/kyromoto/paperfeed/commit/b0c015517973527f4a67fa2efedd862dca1cbc49))
+
 ## [1.6.6](https://github.com/kyromoto/paperfeed/compare/v1.6.5...v1.6.6) (2026-07-14)
 
 
