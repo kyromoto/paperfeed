@@ -13,8 +13,9 @@ export const handleWebhook = (
 	monitors: Map<string, DriveMonitor>
 ) => {
 
-	return async (req: Request, res: Response) => {
+	const debounceMS = config.server.queue.debounce.collectChangesSec * 1000;
 
+	return async (req: Request, res: Response) => {
 		try {
 			logger.info("Handling request ...");
 
@@ -46,7 +47,6 @@ export const handleWebhook = (
 
 			logger.info(`${account.name}: Received webhook for state ${state} ... adding job to queue`);
 			const isoDate = new Date(now).toISOString();
-			const debounceMS = 5000;
 			await queue.add(
 				queue.name,
 				{ accountId: account.id },

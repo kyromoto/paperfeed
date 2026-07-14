@@ -13,13 +13,16 @@ export const Server = z.object({
 			url: z.string().url(),
 			prefix: z.string().default("paperless-gdrive-link"),
 		}),
-		concurrency: z
-			.object({
-				collect: z.number().min(1).default(5),
-				process: z.number().min(1).default(1),
-				renew: z.number().min(1).default(1),
-			})
-			.default({}),
+		concurrency: z.object({
+			collect: z.number().min(1).default(5),
+			process: z.number().min(1).default(1),
+			renew: z.number().min(1).default(1),
+		})
+		.default({}),
+		debounce: z.object({
+			collectChangesSec: z.number().min(0).max(5*60).default(5),
+		})
+		.default({}),
 	}),
 	drive_monitor: z.object({
 		webhook_url: z.string().url(),

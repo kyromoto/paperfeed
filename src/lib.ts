@@ -3,7 +3,7 @@ import path from "node:path";
 import type { Logger } from "@logtape/logtape";
 import { JWT } from "google-auth-library";
 import { type drive_v3, google } from "googleapis";
-import type { DriveFile, FileProcessor } from "./file-processor";
+import type { FileProcessor } from "./file-processor";
 import type { Account, Config, DriveAccount } from "./types";
 
 export const listFilesRecursive = async (
