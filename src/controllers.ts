@@ -46,12 +46,19 @@ export const handleWebhook = (
 
 			logger.info(`${account.name}: Received webhook for state ${state} ... adding job to queue`);
 			const isoDate = new Date(now).toISOString();
+			const debounceMS = 5000;
 			await queue.add(
 				queue.name,
 				{ accountId: account.id },
 				{
 					jobId: `collect-changes-${account.id}-${isoDate}`,
-					deduplication: { id: `collect-changes-${account.id}`}
+					deduplication: {
+						id: `collect-changes-${account.id}`,
+						ttl: debounceMS,	// Debounce Mode
+						extend: true,		// Debounce Mode
+						replace: true,		// Debounce Mode
+					},
+					delay: debounceMS,		// Debounce Mode
 				}
 			);
 
