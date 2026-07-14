@@ -1,3 +1,10 @@
+## [1.6.12](https://github.com/kyromoto/paperfeed/compare/v1.6.11...v1.6.12) (2026-07-14)
+
+
+### Bug Fixes
+
+* chnage debounce time in config ([c447c4a](https://github.com/kyromoto/paperfeed/commit/c447c4ac79b3330faa4a4500797e1f1f7f9fa994))
+
 ## [1.6.11](https://github.com/kyromoto/paperfeed/compare/v1.6.10...v1.6.11) (2026-07-14)
 
 
