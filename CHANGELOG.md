@@ -1,3 +1,10 @@
+## [1.6.6](https://github.com/kyromoto/paperfeed/compare/v1.6.5...v1.6.6) (2026-07-14)
+
+
+### Bug Fixes
+
+* logging improved ([b915c4f](https://github.com/kyromoto/paperfeed/commit/b915c4ff99966b7098d286351e91707c8a75eddb))
+
 ## [1.6.5](https://github.com/kyromoto/paperfeed/compare/v1.6.4...v1.6.5) (2026-06-10)
 
 
