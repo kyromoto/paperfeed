@@ -3,6 +3,7 @@ import axios from "axios";
 import FormData from "form-data";
 import type { drive_v3 } from "googleapis";
 
+import type { ChangeTokenRepository } from "./change-token-repository";
 import type { FileStore } from "./file-store";
 import { listChangesRecursive, listFilesRecursive } from "./lib";
 import type { Account, Config } from "./types";
@@ -36,6 +37,7 @@ export class FileProcessor {
 		private readonly logger: Logger,
 		private readonly config: Config,
 		private readonly fileStore: FileStore,
+		private readonly changeTokenRepository: ChangeTokenRepository,
 		private readonly account: Account,
 		private readonly driveClient: drive_v3.Drive,
 	) {}
@@ -73,7 +75,12 @@ export class FileProcessor {
 			}
 
 			case "changes": {
-				const changes = await listChangesRecursive(this.config, this.account, this.driveClient);
+				const changes = await listChangesRecursive(
+					this.config,
+					this.changeTokenRepository,
+					this.account,
+					this.driveClient,
+				);
 				const added = all.filter((file) => changes.find((change) => change.fileId === file.id));
 				return mapper(added);
 			}

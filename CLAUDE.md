@@ -40,8 +40,18 @@ Multiple accounts can be configured; each gets its own `DriveMonitor` and `FileP
 Google Drive (src folder)
     │
     ▼ [files.watch webhook channel]
-DriveMonitor  ──delayed job──▶  renew-channel Queue  (BullMQ/Redis)
-    │                               jobId = "renew-channel-{accountId}-{timestamp}" ← fires 30s before expiry
+DriveMonitor  ──persists {channelId, expiration}──▶  SQLite (drive_channels table)
+    │                                                       ▲
+    │                                                       │ polls every renewPollIntervalSec
+    │                                                ChannelRenewalScheduler (setInterval, in-process)
+    │                                                       │ due (expiration - now <= 30s)?
+    │                                                       ▼
+    │                                          renew-channel Queue  (BullMQ/Redis)
+    │                                             jobId = "renew-channel-{accountId}-{timestamp}"
+    │                                             deduplication.id = "renew-channel-{accountId}"
+    │                                             attempts: 3, exponential backoff
+    │                                                       │
+    │◀──────────────────────── Worker calls monitor.start() ┘
     │ Google Drive sends HTTP POST
     ▼
 POST /webhook  (controllers.ts)
@@ -51,8 +61,8 @@ collect-changes Queue  (BullMQ/Redis)
     │  jobId = "collect-changes-{accountId}"  ← deterministic, prevents duplicate concurrent jobs
     ▼
 collect-changes Worker  (queue-processor.ts)
-    │  calls Drive changes.list API, uses change token from disk
-    │  writes updated change token to {data_path}/tokens/
+    │  calls Drive changes.list API, uses change token from SQLite
+    │  writes updated change token back to SQLite
     ▼
 process-changes Queue  (BullMQ/Redis, one job per file)
     ▼
@@ -64,17 +74,21 @@ process-changes Worker
 Done
 ```
 
-On startup, all files currently in the src folder are scanned and queued directly into `process-changes` (bypassing collect), so nothing is missed while the app was offline. Stale `renew-channel` delayed jobs from the previous run are drained before `monitor.start()` is called, to avoid spurious double-starts after a restart.
+On startup, all files currently in the src folder are scanned and queued directly into `process-changes` (bypassing collect), so nothing is missed while the app was offline.
 
 ### Key components
 
 | File | Role |
 |---|---|
 | `src/main.ts` | Wires everything together; owns queue/worker setup and startup scan |
-| `src/drive-monitor.ts` | Manages one Google Drive webhook channel per account; schedules renewal via BullMQ delayed job 30s before expiry |
+| `src/drive-monitor.ts` | Manages one Google Drive webhook channel per account; on `start()` creates the channel and persists `{channelId, expiration}` to SQLite. Does not schedule its own renewal. |
+| `src/channel-renewal-scheduler.ts` | `startChannelRenewalScheduler()` — in-process `setInterval` poller. Every `renewPollIntervalSec`, checks each account's channel state in SQLite; if expiration is within 30s (`RENEW_OFFSET_MS`), enqueues a `renew-channel` job. |
+| `src/db.ts` | Opens the SQLite database at `{data_path}/paperfeed.db`, runs schema migrations (`change_tokens`, `drive_channels` tables) |
+| `src/change-token-repository.ts` | `ChangeTokenRepository` — get/set the Drive change token per `(accountId, folderId)` |
+| `src/channel-repository.ts` | `ChannelRepository` — get/upsert the current Drive channel state per account |
 | `src/file-processor.ts` | `getUnprocessedFiles()` + `processFile()` — the core business logic |
 | `src/file-store.ts` | Thin wrapper around local filesystem for buffering files between download and upload |
-| `src/lib.ts` | `listFilesRecursive`, `listChangesRecursive` (manages change token), `getDriveClient` |
+| `src/lib.ts` | `listFilesRecursive`, `listChangesRecursive` (reads/writes change token via `ChangeTokenRepository`), `getDriveClient` |
 | `src/queue-processor.ts` | BullMQ job handler functions (thin adapters into `FileProcessor`) |
 | `src/queue-utils.ts` | `attachWorkerLogging` (worker event listeners) + `collectOutstandingJobs` (startup scan helper) |
 | `src/controllers.ts` | Express route handlers for `/webhook` and `/health` |
@@ -86,8 +100,10 @@ On startup, all files currently in the src folder are scanned and queued directl
 
 - The `collect-changes` jobId is `collect-changes-${accountId}` (deterministic). This prevents concurrent collect jobs for the same account from racing on the Drive change token. Do not change it to a random ID.
 - The `process-changes` jobId is `process-changes-${accountId}-${fileId}` (deterministic). This prevents the same file from being downloaded/uploaded to Paperless twice concurrently (FileStore collision). Do not change it to a random ID.
-- The `renew-channel` jobId is `renew-channel-${accountId}-${timestamp}` (unique per cycle). `DriveMonitor` tracks the current pending job ID in `currentRenewJobId` (in-memory). On each `start()` call, any existing delayed/waiting job is removed before adding the new one — at most one pending renewal per account at any time, while completed jobs stay in history. The queue is drained on startup (`renewChannelQueue.drain()`) to clear stale delayed jobs from the previous process. Do not revert to a deterministic ID: BullMQ's jobId uniqueness check fires before the `deduplication.id` check (see `addStandardJob.lua`), so a deterministic ID blocks the new delayed job from being added while the renew job is still active.
-- The Drive change token is persisted to disk at `{data_path}/tokens/{accountId}.{folderId}.change-token.txt`. If the token file is missing, the app bootstraps a fresh one from `changes.getStartPageToken`.
+- The `renew-channel` jobId is `renew-channel-${accountId}-${timestamp}` combined with `deduplication.id = renew-channel-${accountId}`, mirroring the `process-changes` pattern. Jobs are only ever enqueued with `delay: 0` by `ChannelRenewalScheduler` when the poller determines renewal is due — there is never an overlapping *delayed* job to conflict with, so the jobId can be freshly generated each time without the removal/tracking dance the old delayed-job design needed.
+- Channel state (`channelId`, `expiration`) lives in SQLite (`drive_channels` table), not in-memory or in a BullMQ delayed job. `DriveMonitor.start()` only creates the channel and persists this state; it does not schedule anything. `ChannelRenewalScheduler` is the sole reader of this state and the sole thing that decides when to renew, polling every `config.server.queue.renewPollIntervalSec` seconds (default 15s — keep this smaller than `RENEW_OFFSET_MS`/30s so a channel is never allowed to actually expire before renewal is detected as due).
+- The `renew-channel` queue has `attempts: 3` with exponential backoff, so a transient Drive API failure during renewal no longer silently leaves the channel to expire.
+- The Drive change token is persisted in SQLite (`change_tokens` table, keyed by `(accountId, folderId)`) via `ChangeTokenRepository`. On first read after upgrading from the pre-SQLite version, a one-time fallback in `lib.ts` (`readLegacyChangeToken`) migrates the token from the old `{data_path}/tokens/{accountId}.{folderId}.change-token.txt` file if present. If neither exists, the app bootstraps a fresh token from `changes.getStartPageToken`.
 - `process-changes` worker runs with concurrency 1 by default. Increasing it risks concurrent FileStore access for the same file (same `{accountId}_{fileId}` path).
 - `@logtape/redaction` automatically strips JWTs and private keys from logs. Do not bypass the logger for sensitive config fields.
 

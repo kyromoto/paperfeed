@@ -1,7 +1,7 @@
 import crypto from "node:crypto";
 import type { Logger } from "@logtape/logtape";
-import type { Queue } from "bullmq";
 import type { drive_v3 } from "googleapis";
+import type { ChannelRepository } from "./channel-repository";
 import { getDriveClient } from "./lib";
 import type { Account, Config, DriveAccount } from "./types";
 
@@ -14,13 +14,12 @@ export class DriveMonitor {
 	private channelId: string | null | undefined = null;
 	private channelExpiration: number | null | undefined = null;
 	private isStarting = false;
-	private currentRenewJobId: string | null = null;
 
 	constructor(
 		private readonly logger: Logger,
 		private readonly config: Config,
 		private readonly account: Account,
-		private readonly renewChannelQueue: Queue<RenewChannelJobPayload>,
+		private readonly channelRepository: ChannelRepository,
 	) {
 		const driveAccount = this.config.drive_accounts.find((drive) => drive.id === this.account.props.drive_account_id);
 
@@ -41,16 +40,14 @@ export class DriveMonitor {
 
 		this.logger.info(`Starting ...`);
 
-		const now = Date.now();
-		const renewOffsetMs = 30 * 1000;
 		const channelId = crypto.randomUUID();
 		const channelAddress = new URL("/webhook", this.config.server.drive_monitor.webhook_url).href;
-		const channleExpiration = now + this.driveAccount.props.channel_expiration_sec * 1000 + renewOffsetMs;
+		const channelExpiration = Date.now() + this.driveAccount.props.channel_expiration_sec * 1000;
 
 		this.logger.debug({
 			channelId,
 			channelAddress,
-			channleExpiration,
+			channelExpiration,
 		});
 
 		try {
@@ -60,7 +57,7 @@ export class DriveMonitor {
 					id: channelId,
 					type: "webhook",
 					address: channelAddress,
-					expiration: channleExpiration.toString(),
+					expiration: channelExpiration.toString(),
 					payload: true,
 				},
 			});
@@ -78,29 +75,7 @@ export class DriveMonitor {
 			this.channelId = channel.data.id;
 			this.channelExpiration = Number.parseInt(channel.data.expiration, 10);
 
-			const renewDelayMs = Math.max(0, this.channelExpiration - Date.now() - renewOffsetMs);
-
-			if (this.currentRenewJobId) {
-				const staleJob = await this.renewChannelQueue.getJob(this.currentRenewJobId);
-				if (staleJob) {
-					const state = await staleJob.getState();
-					if (state === "delayed" || state === "waiting") {
-						await staleJob.remove();
-						this.logger.debug(`Removed stale renew job ${this.currentRenewJobId} (was ${state})`);
-					}
-				}
-				this.currentRenewJobId = null;
-			}
-
-			const dateStr = new Date(now).toISOString();
-			const renewJobId = `renew-channel-${this.account.id}-${dateStr}`;
-			await this.renewChannelQueue.add(
-				"renew-channel",
-				{ accountId: this.account.id },
-				{ jobId: renewJobId, delay: renewDelayMs },
-			);
-			this.currentRenewJobId = renewJobId;
-			this.logger.info(`Channel renew job scheduled: ${renewJobId} in ${renewDelayMs}ms`);
+			this.channelRepository.upsert(this.account.id, this.channelId, this.channelExpiration);
 		} finally {
 			this.isStarting = false;
 		}

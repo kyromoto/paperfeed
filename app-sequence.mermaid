@@ -2,21 +2,30 @@ flowchart TD
     subgraph INIT["🚀 Startup"]
         A([Start]) --> B[Config laden]
         B --> C[FileStore init]
-        C --> D[Redis / BullMQ verbinden]
+        C --> C2[SQLite öffnen\nchange_tokens / drive_channels]
+        C2 --> D[Redis / BullMQ verbinden]
         D --> E[FileProcessors pro Account erstellen]
         E --> F[DriveMonitors pro Account erstellen]
-        F --> G[Stale renew-channel Jobs aus Queue räumen]
-        G --> H[Ausstehende Dateien aus Watchfoldern holen]
+        F --> H[Ausstehende Dateien aus Watchfoldern holen]
         H -->|alle gefundenen Dateien| I[process-changes Queue füllen]
         I --> J[HTTP Server starten]
         J --> K[DriveMonitors starten → Webhook bei Google Drive registrieren]
+        K --> K2[ChannelRenewalScheduler starten\nsetInterval alle renewPollIntervalSec]
     end
 
     subgraph MONITOR["🔔 DriveMonitor – Webhook-Kanal"]
         K --> L[Google Drive Webhook-Kanal öffnen\nmit Ablaufzeit]
-        L --> M["renew-channel Delayed Job in Queue stellen\njobId: renew-channel-{accountId}\n30s vor Kanalablauf"]
-        M --> N{Kanal läuft ab?}
-        N -->|Ja – BullMQ Delayed Job feuert| L
+        L --> SQ[("SQLite\ndrive_channels")]
+        SQ -.->|"{channelId, expiration} speichern"| L
+    end
+
+    subgraph RENEW["🔁 ChannelRenewalScheduler – Poller"]
+        K2 --> P1{"Für jeden Account:\nexpiration - now <= 30s?"}
+        SQ -.->|liest expiration| P1
+        P1 -->|Ja| P2["renew-channel Job in Queue stellen\njobId: renew-channel-{accountId}-{timestamp}\ndeduplication.id: renew-channel-{accountId}\ndelay: 0"]
+        P1 -->|Nein| P1
+        P2 --> P3[renew-channel Worker\nattempts: 3, exponential backoff]
+        P3 --> L
     end
 
     subgraph WEBHOOK["📬 Webhook-Empfang POST /webhook"]
@@ -50,6 +59,7 @@ flowchart TD
     L <-->|files.watch API| GD
     O -->|HTTP POST| WEBHOOK
     T <-->|changes.list API| GD
+    T -.->|change_tokens Tabelle| SQ
     X <-->|files.get stream| GD
     Y -->|HTTP POST Basic Auth| PL
     Z -->|files.update parents| GD
@@ -57,4 +67,4 @@ flowchart TD
     S -->|BullMQ| RD
     V -->|BullMQ| RD
     I -->|BullMQ| RD
-    M -->|BullMQ Delayed Job| RD
+    P2 -->|BullMQ| RD

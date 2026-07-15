@@ -2,13 +2,15 @@
 
 ## Feature — Admin Web UI (Bull Board)
 
-**Ziel:** Einfache, auth-freie Admin-Oberfläche unter `/admin/queues`, auf der aktive, wartende, abgeschlossene und fehlgeschlagene Jobs beider Queues sichtbar sind.
+**Ziel:** Einfache, auth-freie Admin-Oberfläche unter `/admin/queues`, auf der aktive, wartende, abgeschlossene und fehlgeschlagene Jobs aller drei Queues sichtbar sind.
 
 **Umsetzung:**
 - Pakete `@bull-board/express` und `@bull-board/api` installieren
-- `ExpressAdapter` + `createBullBoard` in `src/main.ts` einbinden, Queue-Instanzen (`collect-changes`, `process-changes`) als `BullMQAdapter` registrieren
+- `ExpressAdapter` + `createBullBoard` in `src/main.ts` einbinden, Queue-Instanzen (`collect-changes`, `process-changes`, `renew-channel`) als `BullMQAdapter` registrieren
 - Router unter `/admin/queues` mounten (vor anderen Routes)
 - Queue-Instanzen ggf. aus dem lokalen Scope herauslösen, damit sie dem Board-Setup zugänglich sind
+
+**Hinweis:** `renew-channel` unbedingt mit aufnehmen — seit dem SQLite/Poller-Refactor der Channel-Renewal-Logik (siehe CLAUDE.md) ist Bull Board dort der einzige Weg, Retries/fehlgeschlagene Renewals zu beobachten.
 
 **Hinweis:** Kein Auth vorgesehen — nur für internes/lokales Deployment gedacht.
 
@@ -50,4 +52,4 @@ Zwei unabhängige Verbesserungen, können einzeln umgesetzt werden.
 Anonymes `(async () => { ... })()` durch `async function main() { ... }` + `main()` ersetzen. Macht den Einstiegspunkt sofort erkennbar und erlaubt Top-Level-Typen außerhalb des Blocks.
 
 ### 2. `addExitCallback` ans Ende verschieben
-Der Callback (Zeile 43) referenziert `logger`, `server`, `redisConnection` und `monitors`, die erst weiter unten deklariert werden. Callback nach allen Deklarationen platzieren oder in eine `setupShutdownHandler(logger, server, redisConnection, monitors)`-Funktion auslagern.
+Der Callback (Zeile 43) referenziert `logger`, `server`, `redisConnection`, `db`, `renewalSchedulerInterval` und `monitors`, die erst weiter unten deklariert werden (die letzten beiden kamen mit dem SQLite/Poller-Refactor dazu — das Problem wächst mit). Callback nach allen Deklarationen platzieren oder in eine `setupShutdownHandler(logger, server, redisConnection, db, renewalSchedulerInterval, monitors)`-Funktion auslagern.

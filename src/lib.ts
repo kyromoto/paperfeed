@@ -3,6 +3,7 @@ import path from "node:path";
 import type { Logger } from "@logtape/logtape";
 import { JWT } from "google-auth-library";
 import { type drive_v3, google } from "googleapis";
+import type { ChangeTokenRepository } from "./change-token-repository";
 import type { FileProcessor } from "./file-processor";
 import type { Account, Config, DriveAccount } from "./types";
 
@@ -35,24 +36,12 @@ export const listFilesRecursive = async (
 
 export const listChangesRecursive = async (
 	config: Config,
+	changeTokenRepository: ChangeTokenRepository,
 	account: Account,
 	drive: drive_v3.Drive,
 ) => {
-	const tokenPath = path.join(config.server.data_path, "tokens");
-
-	await fs.access(tokenPath, fs.constants.W_OK).catch(async () => {
-		await fs.mkdir(tokenPath, { recursive: true });
-	});
-
-	const token = await getChangeToken(account, tokenPath).catch(async () => {
-		const res = await drive.changes.getStartPageToken({});
-
-		if (!res.data.startPageToken) {
-			throw new Error(`Failed to get start page token for ${account.name}`);
-		}
-
-		return res.data.startPageToken;
-	});
+	const folderId = account.props.drive_src_folder_id;
+	const token = await getChangeToken(config, changeTokenRepository, account, folderId, drive);
 
 	const fn = async (pageToken?: string): Promise<drive_v3.Schema$Change[]> => {
 		const res = await drive.changes.list({
@@ -70,7 +59,7 @@ export const listChangesRecursive = async (
 		}
 
 		if (res.data.newStartPageToken) {
-			await setChangeToken(account, tokenPath, res.data.newStartPageToken);
+			changeTokenRepository.set(account.id, folderId, res.data.newStartPageToken);
 		}
 
 		return changes;
@@ -79,32 +68,47 @@ export const listChangesRecursive = async (
 	return await fn(token);
 };
 
-export const getSrcFolderChangeTokenFilepath = (
+const getChangeToken = async (
+	config: Config,
+	changeTokenRepository: ChangeTokenRepository,
 	account: Account,
-	storePath: string,
-) => {
-	return path.join(
-		storePath,
+	folderId: string,
+	drive: drive_v3.Drive,
+): Promise<string> => {
+	const stored = changeTokenRepository.get(account.id, folderId);
+
+	if (stored) {
+		return stored;
+	}
+
+	const legacy = await readLegacyChangeToken(config, account);
+
+	if (legacy) {
+		changeTokenRepository.set(account.id, folderId, legacy);
+		return legacy;
+	}
+
+	const res = await drive.changes.getStartPageToken({});
+
+	if (!res.data.startPageToken) {
+		throw new Error(`Failed to get start page token for ${account.name}`);
+	}
+
+	changeTokenRepository.set(account.id, folderId, res.data.startPageToken);
+	return res.data.startPageToken;
+};
+
+// One-time migration path from the pre-SQLite file-based token store. Can be
+// removed once all deployments have run once with the SQLite-backed store.
+const readLegacyChangeToken = async (config: Config, account: Account): Promise<string | undefined> => {
+	const filepath = path.join(
+		config.server.data_path,
+		"tokens",
 		`${account.id}.${account.props.drive_src_folder_id}.change-token.txt`,
 	);
-};
 
-export const getChangeToken = async (account: Account, storePath: string) => {
-	const filepath = getSrcFolderChangeTokenFilepath(account, storePath);
-
-	const raw = await fs.readFile(filepath, "utf-8");
-	const token = raw.trim();
-	return token;
-};
-
-export const setChangeToken = async (
-	account: Account,
-	storePath: string,
-	token: string,
-) => {
-	const filepath = getSrcFolderChangeTokenFilepath(account, storePath);
-
-	await fs.writeFile(filepath, token, { encoding: "utf-8" });
+	const raw = await fs.readFile(filepath, "utf-8").catch(() => undefined);
+	return raw?.trim() || undefined;
 };
 
 export const stopChannels = async (

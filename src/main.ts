@@ -11,8 +11,12 @@ import express from "express";
 import helmet from "helmet";
 import IORedis, { type RedisOptions } from "ioredis";
 import { err, ok, Result } from "neverthrow";
+import { ChangeTokenRepository } from "./change-token-repository";
+import { startChannelRenewalScheduler } from "./channel-renewal-scheduler";
+import { ChannelRepository } from "./channel-repository";
 import { ConfigFileRepository } from "./config-repository";
 import { handleHealthCheck, handleWebhook } from "./controllers";
+import { openDatabase } from "./db";
 import type { RenewChannelJobPayload } from "./drive-monitor";
 import { DriveMonitor } from "./drive-monitor";
 import * as env from "./env";
@@ -55,6 +59,12 @@ const ROOT_LOGGER_KEY = "app";
 				error: err,
 			});
 		});
+
+		logger.info(`Closing database ...`);
+		db.close();
+
+		logger.info(`Stopping channel renewal scheduler ...`);
+		clearInterval(renewalSchedulerInterval);
 
 		logger.info(`Stopping monitors ...`);
 		Promise.all(
@@ -108,6 +118,11 @@ const ROOT_LOGGER_KEY = "app";
 	const fileStore = new FileStore(path.join(config.server.data_path, "files"));
 	await fileStore.init();
 
+	logger.info("Opening database ...");
+	const db = openDatabase(config.server.data_path);
+	const changeTokenRepository = new ChangeTokenRepository(db);
+	const channelRepository = new ChannelRepository(db);
+
 	const monitors = new Map<string, DriveMonitor>();
 	const processors = new Map<string, FileProcessor>();
 
@@ -160,6 +175,8 @@ const ROOT_LOGGER_KEY = "app";
 			...queueOptions,
 			defaultJobOptions: {
 				removeOnComplete: { age: 60 * 60 * 24 }, // 1 Day
+				attempts: 3,
+				backoff: { type: "exponential", delay: 5_000 },
 			}
 		},
 	);
@@ -238,6 +255,7 @@ const ROOT_LOGGER_KEY = "app";
 					logger.getChild(["file-processor", account.name]),
 					config,
 					fileStore,
+					changeTokenRepository,
 					account,
 					getDriveClient(driveAccount),
 				),
@@ -258,7 +276,7 @@ const ROOT_LOGGER_KEY = "app";
 	for (const account of config.accounts) {
 		monitors.set(
 			account.id,
-			new DriveMonitor(logger.getChild(["drive-monitor", account.name]), config, account, renewChannelQueue),
+			new DriveMonitor(logger.getChild(["drive-monitor", account.name]), config, account, channelRepository),
 		);
 	}
 
@@ -282,11 +300,17 @@ const ROOT_LOGGER_KEY = "app";
 		});
 	});
 
-	logger.info("Clearing stale renew-channel jobs ...");
-	await renewChannelQueue.drain();
-
 	logger.info("Starting drive monitors ...");
 	await Promise.all(Array.from(monitors.values()).map((monitor) => monitor.start()));
+
+	logger.info("Starting channel renewal scheduler ...");
+	const renewalSchedulerInterval = startChannelRenewalScheduler(
+		logger.getChild("channel-renewal-scheduler"),
+		config.accounts,
+		channelRepository,
+		renewChannelQueue,
+		config.server.queue.renewPollIntervalSec * 1000,
+	);
 
 	const elapsedMs = (Date.now() - startTime) / 1000;
 	logger.info(`Application started in ${elapsedMs} seconds`);

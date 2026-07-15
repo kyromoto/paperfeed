@@ -23,6 +23,7 @@ export const Server = z.object({
 			collectChangesSec: z.number().min(0).max(5*60).default(5),
 		})
 		.default({}),
+		renewPollIntervalSec: z.number().min(5).default(15),
 	}),
 	drive_monitor: z.object({
 		webhook_url: z.string().url(),
