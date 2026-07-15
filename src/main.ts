@@ -124,7 +124,7 @@ const ROOT_LOGGER_KEY = "app";
 	logger.info("Initializing queues ...");
 	const queueOptions: bullmq.QueueOptions = {
 		connection: redisConnection,
-		prefix: config.server.queue.redis.prefix,
+		prefix: config.server.queue.redis.prefix
 	};
 
 	const workerOptions: bullmq.WorkerOptions = {
@@ -136,17 +136,32 @@ const ROOT_LOGGER_KEY = "app";
 
 	const collectChangesQueue = new bullmq.Queue<CollectChangesJobPayload, CollectChangesJobResult>(
 		"collect-changes",
-		queueOptions,
+		{
+			...queueOptions,
+			defaultJobOptions: {
+				removeOnComplete: { age: 60 * 60 * 24 * 7 }, // 1 Week
+			}
+		},
 	);
 
 	const processChangesQueue = new bullmq.Queue<ProcessChangesJobPayload, ProcessChangesJobResult>(
 		"process-changes",
-		queueOptions,
+		{
+			...queueOptions,
+			defaultJobOptions: {
+				removeOnComplete: { age: 60 * 60 * 24 * 7 }, // 1 Week
+			}
+		},
 	);
 
 	const renewChannelQueue = new bullmq.Queue<RenewChannelJobPayload>(
 		"renew-channel",
-		queueOptions
+		{
+			...queueOptions,
+			defaultJobOptions: {
+				removeOnComplete: { age: 60 * 60 * 24 }, // 1 Day
+			}
+		},
 	);
 
 	const collectChangesWorker = new bullmq.Worker(
