@@ -1,3 +1,10 @@
+# [1.7.0](https://github.com/kyromoto/paperfeed/compare/v1.6.12...v1.7.0) (2026-07-15)
+
+
+### Features
+
+* remove old succeed jobs after an certain time ([0f1dbf3](https://github.com/kyromoto/paperfeed/commit/0f1dbf3daa2f901c677bc8b720b4cd084d57e177))
+
 ## [1.6.12](https://github.com/kyromoto/paperfeed/compare/v1.6.11...v1.6.12) (2026-07-14)
 
 
