@@ -15,6 +15,8 @@ FROM node:22-alpine AS production
 
 WORKDIR /app
 
+RUN apk upgrade --no-cache
+
 COPY package*.json .
 COPY --from=builder /app/build ./build
 
