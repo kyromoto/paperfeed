@@ -1,3 +1,17 @@
+# [1.8.0](https://github.com/kyromoto/paperfeed/compare/v1.7.0...v1.8.0) (2026-07-21)
+
+
+### Bug Fixes
+
+* add missing claude settings.json changes ([59620bb](https://github.com/kyromoto/paperfeed/commit/59620bb94649cbfc89c1886b80a42d675bfa2686))
+* resolve form-data CRLF vulnerability and patch stale alpine packages in image ([b2ef99b](https://github.com/kyromoto/paperfeed/commit/b2ef99b4036ed0061814ec1133ac70abf0dda611))
+* stop existing drive channel before creating a new one on start ([9af57ac](https://github.com/kyromoto/paperfeed/commit/9af57accfa967e7a42958cd2ae361c91b32acf94))
+
+
+### Features
+
+* persist change token and drive channel state in sqlite, poll for channel renewal ([21bdc8d](https://github.com/kyromoto/paperfeed/commit/21bdc8d3f9e0cbf7b28e95036c091d5cbbaf78ff))
+
 # [1.7.0](https://github.com/kyromoto/paperfeed/compare/v1.6.12...v1.7.0) (2026-07-15)
 
 
