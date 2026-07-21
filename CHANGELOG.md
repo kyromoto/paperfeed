@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/kyromoto/paperfeed/compare/v1.8.0...v1.8.1) (2026-07-21)
+
+
+### Bug Fixes
+
+* store sqlite database in db subfolder instead of data root ([a069cf8](https://github.com/kyromoto/paperfeed/commit/a069cf8b9c5880addbe36fb740d889b9215340a1))
+
 # [1.8.0](https://github.com/kyromoto/paperfeed/compare/v1.7.0...v1.8.0) (2026-07-21)
 
 
