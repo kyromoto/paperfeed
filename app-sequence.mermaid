@@ -14,9 +14,13 @@ flowchart TD
     end
 
     subgraph MONITOR["🔔 DriveMonitor – Webhook-Kanal"]
-        K --> L[Google Drive Webhook-Kanal öffnen\nmit Ablaufzeit]
+        K --> L0{"Bestehender Channel\nin SQLite?"}
+        L0 -->|Ja| L1["Alten Channel stoppen\n(best-effort, Fehler werden nur geloggt)"]
+        L0 -->|Nein| L
+        L1 --> L[Google Drive Webhook-Kanal öffnen\nmit Ablaufzeit]
         L --> SQ[("SQLite\ndrive_channels")]
-        SQ -.->|"{channelId, expiration} speichern"| L
+        SQ -.->|"{channelId, resourceId, expiration} speichern"| L
+        SQ -.->|liest vorherigen Channel| L0
     end
 
     subgraph RENEW["🔁 ChannelRenewalScheduler – Poller"]

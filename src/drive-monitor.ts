@@ -12,6 +12,7 @@ export class DriveMonitor {
 	private driveClient: drive_v3.Drive;
 
 	private channelId: string | null | undefined = null;
+	private resourceId: string | null | undefined = null;
 	private channelExpiration: number | null | undefined = null;
 	private isStarting = false;
 
@@ -39,6 +40,24 @@ export class DriveMonitor {
 		this.isStarting = true;
 
 		this.logger.info(`Starting ...`);
+
+		const existing = this.channelRepository.get(this.account.id);
+		if (existing) {
+			this.logger.info(`Stopping existing channel ${existing.channelId} before creating a new one`);
+			await this.driveClient.channels
+				.stop({
+					requestBody: {
+						id: existing.channelId,
+						resourceId: existing.resourceId,
+					},
+				})
+				.then(() => {
+					this.logger.info(`Stopped existing channel ${existing.channelId}`);
+				})
+				.catch((err) => {
+					this.logger.warn(`Failed to stop existing channel ${existing.channelId}: ${err.message}`, { error: err });
+				});
+		}
 
 		const channelId = crypto.randomUUID();
 		const channelAddress = new URL("/webhook", this.config.server.drive_monitor.webhook_url).href;
@@ -70,35 +89,43 @@ export class DriveMonitor {
 				throw new Error("Channel start failed: expiration not set");
 			}
 
+			if (!channel.data.resourceId) {
+				throw new Error("Channel start failed: resourceId not set");
+			}
+
 			this.logger.info(`Channel started`, { channel });
 
 			this.channelId = channel.data.id;
+			this.resourceId = channel.data.resourceId;
 			this.channelExpiration = Number.parseInt(channel.data.expiration, 10);
 
-			this.channelRepository.upsert(this.account.id, this.channelId, this.channelExpiration);
+			this.channelRepository.upsert(this.account.id, this.channelId, this.resourceId, this.channelExpiration);
 		} finally {
 			this.isStarting = false;
 		}
 	}
 
-	public async stop(channelId?: string) {
+	public async stop() {
 		this.logger.info(`Stopping ...`);
 
-		if (!this.channelId) {
-			throw new Error("Channel id not set");
+		if (!this.channelId || !this.resourceId) {
+			throw new Error("Channel id or resource id not set");
 		}
 
-		const cid = channelId || this.channelId;
+		const cid = this.channelId;
+		const rid = this.resourceId;
 		this.channelId = null;
+		this.resourceId = null;
 
 		await this.driveClient.channels
 			.stop({
 				requestBody: {
 					id: cid,
+					resourceId: rid,
 				},
 			})
 			.catch((err) => {
-				this.logger.error(`Failed to stop channel with id ${channelId}: ${err.message}`, { error: err });
+				this.logger.error(`Failed to stop channel with id ${cid}: ${err.message}`, { error: err });
 			});
 	}
 

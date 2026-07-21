@@ -23,8 +23,14 @@ const migrate = (db: Db) => {
 		CREATE TABLE IF NOT EXISTS drive_channels (
 			account_id TEXT PRIMARY KEY,
 			channel_id TEXT NOT NULL,
+			resource_id TEXT NOT NULL DEFAULT '',
 			expiration INTEGER NOT NULL,
 			updated_at INTEGER NOT NULL
 		);
 	`);
+
+	const columns = db.prepare("PRAGMA table_info(drive_channels)").all() as { name: string }[];
+	if (!columns.some((column) => column.name === "resource_id")) {
+		db.exec("ALTER TABLE drive_channels ADD COLUMN resource_id TEXT NOT NULL DEFAULT ''");
+	}
 };

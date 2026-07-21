@@ -40,7 +40,7 @@ Multiple accounts can be configured; each gets its own `DriveMonitor` and `FileP
 Google Drive (src folder)
     │
     ▼ [files.watch webhook channel]
-DriveMonitor  ──persists {channelId, expiration}──▶  SQLite (drive_channels table)
+DriveMonitor  ──persists {channelId, resourceId, expiration}──▶  SQLite (drive_channels table)
     │                                                       ▲
     │                                                       │ polls every renewPollIntervalSec
     │                                                ChannelRenewalScheduler (setInterval, in-process)
@@ -81,7 +81,7 @@ On startup, all files currently in the src folder are scanned and queued directl
 | File | Role |
 |---|---|
 | `src/main.ts` | Wires everything together; owns queue/worker setup and startup scan |
-| `src/drive-monitor.ts` | Manages one Google Drive webhook channel per account; on `start()` creates the channel and persists `{channelId, expiration}` to SQLite. Does not schedule its own renewal. |
+| `src/drive-monitor.ts` | Manages one Google Drive webhook channel per account; on `start()` first attempts to stop the previously persisted channel (if any), then creates a new channel and persists `{channelId, resourceId, expiration}` to SQLite. Does not schedule its own renewal. |
 | `src/channel-renewal-scheduler.ts` | `startChannelRenewalScheduler()` — in-process `setInterval` poller. Every `renewPollIntervalSec`, checks each account's channel state in SQLite; if expiration is within 30s (`RENEW_OFFSET_MS`), enqueues a `renew-channel` job. |
 | `src/db.ts` | Opens the SQLite database at `{data_path}/paperfeed.db`, runs schema migrations (`change_tokens`, `drive_channels` tables) |
 | `src/change-token-repository.ts` | `ChangeTokenRepository` — get/set the Drive change token per `(accountId, folderId)` |
@@ -101,7 +101,7 @@ On startup, all files currently in the src folder are scanned and queued directl
 - The `collect-changes` jobId is `collect-changes-${accountId}` (deterministic). This prevents concurrent collect jobs for the same account from racing on the Drive change token. Do not change it to a random ID.
 - The `process-changes` jobId is `process-changes-${accountId}-${fileId}` (deterministic). This prevents the same file from being downloaded/uploaded to Paperless twice concurrently (FileStore collision). Do not change it to a random ID.
 - The `renew-channel` jobId is `renew-channel-${accountId}-${timestamp}` combined with `deduplication.id = renew-channel-${accountId}`, mirroring the `process-changes` pattern. Jobs are only ever enqueued with `delay: 0` by `ChannelRenewalScheduler` when the poller determines renewal is due — there is never an overlapping *delayed* job to conflict with, so the jobId can be freshly generated each time without the removal/tracking dance the old delayed-job design needed.
-- Channel state (`channelId`, `expiration`) lives in SQLite (`drive_channels` table), not in-memory or in a BullMQ delayed job. `DriveMonitor.start()` only creates the channel and persists this state; it does not schedule anything. `ChannelRenewalScheduler` is the sole reader of this state and the sole thing that decides when to renew, polling every `config.server.queue.renewPollIntervalSec` seconds (default 15s — keep this smaller than `RENEW_OFFSET_MS`/30s so a channel is never allowed to actually expire before renewal is detected as due).
+- Channel state (`channelId`, `resourceId`, `expiration`) lives in SQLite (`drive_channels` table), not in-memory or in a BullMQ delayed job. `DriveMonitor.start()` reads any previously persisted state for the account and tries to stop that channel with Google (best-effort — failures are logged, not thrown, since the old channel may already be expired or invalid), then always creates a fresh channel and persists the new state. It does not schedule anything itself. `ChannelRenewalScheduler` is the sole reader of this state during runtime and the sole thing that decides when to renew, polling every `config.server.queue.renewPollIntervalSec` seconds (default 15s — keep this smaller than `RENEW_OFFSET_MS`/30s so a channel is never allowed to actually expire before renewal is detected as due). `resourceId` is required (alongside `channelId`) by Google's `channels.stop` API — without it, stop calls fail silently.
 - The `renew-channel` queue has `attempts: 3` with exponential backoff, so a transient Drive API failure during renewal no longer silently leaves the channel to expire.
 - The Drive change token is persisted in SQLite (`change_tokens` table, keyed by `(accountId, folderId)`) via `ChangeTokenRepository`. On first read after upgrading from the pre-SQLite version, a one-time fallback in `lib.ts` (`readLegacyChangeToken`) migrates the token from the old `{data_path}/tokens/{accountId}.{folderId}.change-token.txt` file if present. If neither exists, the app bootstraps a fresh token from `changes.getStartPageToken`.
 - `process-changes` worker runs with concurrency 1 by default. Increasing it risks concurrent FileStore access for the same file (same `{accountId}_{fileId}` path).
