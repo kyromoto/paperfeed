@@ -1,10 +1,14 @@
+import fs from "node:fs";
 import path from "node:path";
 import Database from "better-sqlite3";
 
 export type Db = Database.Database;
 
 export const openDatabase = (dataPath: string): Db => {
-	const db = new Database(path.join(dataPath, "paperfeed.db"));
+	const dbDir = path.join(dataPath, "db");
+	fs.mkdirSync(dbDir, { recursive: true });
+
+	const db = new Database(path.join(dbDir, "paperfeed.db"));
 	db.pragma("journal_mode = WAL");
 	migrate(db);
 	return db;
