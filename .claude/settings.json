@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(grep -n 'resourceId\\\\|interface Schema$Channel' -A2 -B2 node_modules/googleapis/build/src/apis/drive/v3.d.ts)",
+      "Bash(npx tsc *)",
+      "Bash(git commit -m ' *)"
+    ]
+  }
+}
