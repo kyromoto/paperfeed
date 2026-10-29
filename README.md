@@ -19,6 +19,10 @@ Jobs are backed by [BullMQ](https://bullmq.io/) with Redis. Webhook channel rene
 - A Google service account with Drive API access and the source/destination folders shared with it
 - A running Paperless-ngx instance
 
+## Limitations
+
+**Single instance only.** Run exactly one instance of the app (one container). Running several against the same Redis or the same data directory is not supported: webhook channels and their verification token are held in the memory of the instance that created them, every instance would stop and recreate the channels of the others, and the download buffer in `SERVER_DATA_PATH` is local to the instance. Updates are done by stopping and starting the container; files that arrive in between are picked up by the scan at startup. Concurrency inside the instance is configurable (`SERVER_QUEUE_CONCURRENCY_*`). The admin CLI (`node build/cli.js …`) may run next to the running app.
+
 ## Configuration
 
 Two sources, details and defaults in [docs/configuration.md](docs/configuration.md):
