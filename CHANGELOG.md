@@ -1,3 +1,10 @@
+## [1.11.1](https://github.com/kyromoto/paperfeed/compare/v1.11.0...v1.11.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* report the real reason when a Drive download fails ([89257da](https://github.com/kyromoto/paperfeed/commit/89257dab060ba27483bf737b424cbbe153ff12d4))
+
 # [1.11.0](https://github.com/kyromoto/paperfeed/compare/v1.10.2...v1.11.0) (2026-10-29)
 
 
