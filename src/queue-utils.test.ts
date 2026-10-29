@@ -174,7 +174,11 @@ describe("collectOutstandingJobs", () => {
 describe("attachWorkerLogging final failures", () => {
 	const setup = (onFinalFailure?: (info: FinalFailureInfo) => void) => {
 		const handlers: Record<string, (...args: unknown[]) => void> = {};
-		const worker = { on: (event: string, handler: (...args: unknown[]) => void) => void (handlers[event] = handler) };
+		const worker = {
+			on: (event: string, handler: (...args: unknown[]) => void) => {
+				handlers[event] = handler;
+			},
+		};
 		const queue = { name: "process-changes", on: vi.fn() };
 		const child = { info: vi.fn(), error: vi.fn(), warn: vi.fn() };
 		const logger = { getChild: () => child };
