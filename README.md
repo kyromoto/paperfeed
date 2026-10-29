@@ -56,7 +56,7 @@ pnpm run dev
 ### Production (Docker)
 
 ```bash
-docker build -t paperless-gdrive-link .
+docker build -t paperfeed .
 docker run \
   -e CONFIG_PATH=/config/config.yml \
   -e SERVER_DATA_PATH=/app/data \
@@ -65,15 +65,15 @@ docker run \
   -v /path/to/config:/config:ro \
   -v /path/to/data:/app/data \
   -p 3000:3000 \
-  paperless-gdrive-link
+  paperfeed
 ```
 
 ### docker-compose example
 
 ```yaml
 services:
-  paperless-gdrive-link:
-    image: paperless-gdrive-link
+  paperfeed:
+    image: paperfeed
     environment:
       CONFIG_PATH: /config/config.yml
       SERVER_DATA_PATH: /app/data

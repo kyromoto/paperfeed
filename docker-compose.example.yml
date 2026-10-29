@@ -14,7 +14,7 @@ services:
   # The app itself. Disabled by default (docker compose --profile app up), in development it usually runs on the
   # host (pnpm run dev) and ngrok forwards to it.
   paperfeed:
-    image: ghcr.io/kyromoto/paperless-gdrive-link:latest
+    image: ghcr.io/kyromoto/paperfeed:latest
     profiles: ["app"]
     depends_on:
       redis:

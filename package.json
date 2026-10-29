@@ -1,5 +1,5 @@
 {
-	"name": "paperless-gdrive-link",
+	"name": "paperfeed",
 	"version": "1.10.1",
 	"description": "Use Google Drive as watchfolder for paperless-ngx",
 	"license": "MIT",
