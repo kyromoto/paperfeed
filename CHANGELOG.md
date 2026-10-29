@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/kyromoto/paperfeed/compare/v1.9.1...v1.10.0) (2026-10-29)
+
+
+### Features
+
+* configure the server section through SERVER_* environment variables ([68d8411](https://github.com/kyromoto/paperfeed/commit/68d8411af155ed0e53fcf41adc3f14ff4d2faaa7))
+
 ## [1.9.1](https://github.com/kyromoto/paperfeed/compare/v1.9.0...v1.9.1) (2026-10-29)
 
 
