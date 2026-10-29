@@ -114,6 +114,20 @@ On startup, all files currently in the src folder are scanned and queued directl
 - `process-changes` worker runs with concurrency 1 by default. Increasing it risks concurrent FileStore access for the same file (same `{accountId}_{fileId}` path).
 - `@logtape/redaction` automatically strips JWTs and private keys from logs. Do not bypass the logger for sensitive config fields.
 
+## OpenSpec workflow
+
+Specs live in `openspec/specs/` (one folder per capability, the current behavior), changes in `openspec/changes/<name>/`. **Follow the process strictly** (OpenSpec CLI 1.15.0, Claude commands under `.claude/commands/opsx/`):
+
+1. `/opsx:propose` — create the change (`proposal.md`, delta `specs/`, `design.md`, `tasks.md`) and stop for review. No code before that.
+2. `/opsx:apply <change>` — implement the tasks and tick them off.
+3. `/opsx:archive <change>` — merge the delta specs into `openspec/specs/`.
+
+Rules:
+- Any change to behavior or capabilities (new command, endpoint, config option, job flow, lifecycle) goes through a change, however small. Never edit `openspec/specs/**` directly.
+- No change needed for pure docs, dependency bumps, or fixes that do not alter specified behavior. If a fix contradicts a spec, change the spec through a change.
+- Keep `CLAUDE.md`, `12-FACTOR-REPORT.md` and `BACKLOG.md` in sync as tasks of the change.
+- Validate with `npx @fission-ai/openspec@1.15.0 validate --specs` (and `validate <change>`).
+
 ## Diagrams
 
 [`app-sequence.mermaid`](app-sequence.mermaid) is the authoritative flow diagram. **Update it whenever the processing pipeline changes** (queue names, jobId scheme, step order, new/removed actors). It reflects the current state including RC fixes.
