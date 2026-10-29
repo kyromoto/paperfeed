@@ -44,19 +44,6 @@ Versuche: 3/3
 
 ---
 
-## Refactoring — Lesbarkeit `main.ts`
-
-Zwei unabhängige Verbesserungen, können einzeln umgesetzt werden.
-
-### 1. IIFE → benannte `main()`-Funktion
-Anonymes `(async () => { ... })()` durch `async function main() { ... }` + `main()` ersetzen. Macht den Einstiegspunkt sofort erkennbar und erlaubt Top-Level-Typen außerhalb des Blocks.
-
-### 2. `addExitCallback` ans Ende verschieben
-Der Callback (Zeile 43) referenziert `logger`, `server`, `redisConnection`, `db`, `renewalSchedulerInterval` und `monitors`, die erst weiter unten deklariert werden (die letzten beiden kamen mit dem SQLite/Poller-Refactor dazu — das Problem wächst mit). Callback nach allen Deklarationen platzieren oder in eine `setupShutdownHandler(logger, server, redisConnection, db, renewalSchedulerInterval, monitors)`-Funktion auslagern.
-
-
----
-
 # 12-Factor
 
 Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines Punkts den Report aktualisieren (Status, Ist-Zustand, Gesamtergebnis).
@@ -74,16 +61,6 @@ Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines P
 **Eingriff:** Gering. Siehe `12-FACTOR-REPORT.md`, Weitere Befunde.
 
 **Umsetzung:** Channel-Erneuerung als Poller (`ChannelRenewalScheduler`, `renewPollIntervalSec`) statt Delayed-Job beschreiben; `data_path` enthält SQLite-DB (`db/`) und Temp-Dateien (`files/`), nicht Change-Tokens; `queue`-Optionen (`concurrency`, `debounce`, `renewPollIntervalSec`) dokumentieren.
-
----
-
-## Refactoring — Geordneter Shutdown (12-Factor IX)
-
-**Eingriff:** Gering–Mittel. Siehe `12-FACTOR-REPORT.md`, Faktor IX.
-
-**Umsetzung:** Shutdown in `src/main.ts` sequentiell und mit Gesamt-Timeout: HTTP-Server stoppen → Scheduler stoppen → `await worker.close()` für alle drei Worker (wartet auf aktive Jobs) → Monitors stoppen → Queues und Redis schließen → DB schließen.
-
-**Hinweis:** Überschneidet sich mit „Refactoring — Lesbarkeit `main.ts`“ (Punkt 2, `setupShutdownHandler`). Beides zusammen umsetzen.
 
 ---
 

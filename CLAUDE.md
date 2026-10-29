@@ -81,6 +81,7 @@ On startup, all files currently in the src folder are scanned and queued directl
 | File | Role |
 |---|---|
 | `src/main.ts` | Wires everything together; owns queue/worker setup and startup scan |
+| `src/shutdown.ts` | `setupShutdownHandler()` — signal/uncaughtException handler with ordered shutdown (http → scheduler → workers → monitors → queues → redis → db, 30s timeout). Registered at the end of `main()` once all resources exist. Replaces `catch-exit`, which does not await async callbacks. |
 | `src/drive-monitor.ts` | Manages one Google Drive webhook channel per account; on `start()` first attempts to stop the previously persisted channel (if any), then creates a new channel and persists `{channelId, resourceId, expiration}` to SQLite. Does not schedule its own renewal. |
 | `src/channel-renewal-scheduler.ts` | `startChannelRenewalScheduler()` — in-process `setInterval` poller. Every `renewPollIntervalSec`, checks each account's channel state in SQLite; if expiration is within 30s (`RENEW_OFFSET_MS`), enqueues a `renew-channel` job. |
 | `src/db.ts` | Opens the SQLite database at `{data_path}/db/paperfeed.db` (creates the `db` subfolder if missing), runs schema migrations (`change_tokens`, `drive_channels` tables) |

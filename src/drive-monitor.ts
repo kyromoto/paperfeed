@@ -109,7 +109,8 @@ export class DriveMonitor {
 		this.logger.info(`Stopping ...`);
 
 		if (!this.channelId || !this.resourceId) {
-			throw new Error("Channel id or resource id not set");
+			this.logger.warn("No active channel to stop");
+			return;
 		}
 
 		const cid = this.channelId;

@@ -4,7 +4,6 @@ import path from "node:path";
 import logtape from "@logtape/logtape";
 import { DEFAULT_REDACT_FIELDS, JWT_PATTERN, redactByField, redactByPattern } from "@logtape/redaction";
 import * as bullmq from "bullmq";
-import { addExitCallback } from "catch-exit";
 import express from "express";
 import helmet from "helmet";
 import IORedis, { type RedisOptions } from "ioredis";
@@ -33,6 +32,7 @@ import {
 	makeRenewChannelQueueProcessor,
 } from "./queue-processor";
 import { attachWorkerLogging, collectOutstandingJobs } from "./queue-utils";
+import { setupShutdownHandler } from "./shutdown";
 
 const ROOT_LOGGER_KEY = "app";
 
@@ -42,45 +42,8 @@ const consoleFormatter: logtape.ConsoleFormatter =
 		? (record) => [logtape.jsonLinesFormatter(record).trimEnd()]
 		: logtape.defaultConsoleFormatter;
 
-(async () => {
+async function main() {
 	const startTime = Date.now();
-
-	addExitCallback(async (signal) => {
-		logger.info(`Shutting down... | Signal: ${signal}`, { signal });
-
-		logger.info("Stopping http server ...");
-		new Promise<void>((resolve, reject) =>
-			server.close((err) => {
-				return err ? reject(err) : resolve();
-			}),
-		).catch((err) =>
-			logger.error(`Failed to stop http server: ${err.message}`, {
-				error: err,
-			}),
-		);
-
-		logger.info(`Quit redis connection ...`);
-		redisConnection.quit().catch((err) => {
-			logger.error(`Failed to quit redis connection: ${err.message}`, {
-				error: err,
-			});
-		});
-
-		logger.info(`Closing database ...`);
-		db.close();
-
-		logger.info(`Stopping channel renewal scheduler ...`);
-		clearInterval(renewalSchedulerInterval);
-
-		logger.info(`Stopping monitors ...`);
-		Promise.all(
-			Object.entries(monitors).map(([_accountId, monitor]) => {
-				return monitor.stop();
-			}),
-		);
-
-		logger.info(`Goodbye!`);
-	});
 
 	await logtape.configure({
 		sinks: {
@@ -307,6 +270,22 @@ const consoleFormatter: logtape.ConsoleFormatter =
 		config.server.queue.renewPollIntervalSec * 1000,
 	);
 
+	setupShutdownHandler(logger.getChild("shutdown"), {
+		server,
+		renewalSchedulerInterval,
+		workers: [collectChangesWorker, processChangesWorker, renewChannelWorker],
+		monitors,
+		queues: [collectChangesQueue, processChangesQueue, renewChannelQueue],
+		redisConnection,
+		db,
+	});
+
 	const elapsedMs = (Date.now() - startTime) / 1000;
 	logger.info(`Application started in ${elapsedMs} seconds`);
-})();
+}
+
+main().catch((error: unknown) => {
+	const message = error instanceof Error ? error.message : String(error);
+	logtape.getLogger(ROOT_LOGGER_KEY).fatal(`Failed to start: ${message}`, { error });
+	process.exit(1);
+});
