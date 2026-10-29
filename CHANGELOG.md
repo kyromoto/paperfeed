@@ -1,3 +1,10 @@
+# [1.9.0](https://github.com/kyromoto/paperfeed/compare/v1.8.3...v1.9.0) (2026-10-29)
+
+
+### Features
+
+* add admin CLI (validate-config, migrate, reset-token, reset-channel, requeue) ([3ef6eb0](https://github.com/kyromoto/paperfeed/commit/3ef6eb03394bd973f42abcb54d41150c8a361e76))
+
 ## [1.8.3](https://github.com/kyromoto/paperfeed/compare/v1.8.2...v1.8.3) (2026-10-29)
 
 
