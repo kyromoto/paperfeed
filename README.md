@@ -125,7 +125,7 @@ pnpm run cli <command>                              # local development
 
 ## Notifications
 
-Optional: set `SERVER_NOTIFICATIONS_WEBHOOK_URL` to a generic webhook (for example a Matrix Hookshot webhook) to get a message when a job has failed for good, with at most one message per queue per minute. Details and the check with `notify-test` are in [docs/configuration.md](docs/configuration.md#notifications).
+Optional: set `SERVER_NOTIFICATIONS_WEBHOOK_URL` to a generic webhook (for example a Matrix Hookshot webhook) to get a message when a job has failed for good, with at most one message per queue per minute. Messages are delivered through a retrying queue, so a short webhook outage does not lose them. Details and the check with `notify-test` are in [docs/configuration.md](docs/configuration.md#notifications).
 
 ## Queue monitoring (Bull Board)
 
@@ -133,7 +133,7 @@ The app has no admin UI of its own. Run [Bull Board](https://github.com/felixmos
 
 - `REDIS_HOST` / `REDIS_PORT` point to the Redis used by the app.
 - `BULL_PREFIX` must equal `SERVER_QUEUE_REDIS_PREFIX` (default `paperless-gdrive-link`).
-- It shows `collect-changes`, `process-changes` and `renew-channel`, including retries and failed channel renewals.
+- It shows `collect-changes`, `process-changes`, `renew-channel` and, when notifications are configured, `notifications`, including retries, failed channel renewals and messages that could not be delivered.
 
 Use a Bull Board image that is built on a current BullMQ (the app uses BullMQ 5). Images built on an old BullMQ, such as `deadly0/bull-board` (2021), list the queues but show no jobs and zero counts.
 

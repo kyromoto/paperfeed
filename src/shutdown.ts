@@ -12,6 +12,8 @@ export type ShutdownResources = {
 	renewalSchedulerInterval: NodeJS.Timeout;
 	workers: bullmq.Worker[];
 	monitors: Map<string, DriveMonitor>;
+	/** Hands over notification summaries that are still held back, optional because notifications can be off. */
+	notifier?: { flush: () => Promise<void> };
 	queues: bullmq.Queue[];
 	redisConnection: Redis;
 	db: Db;
@@ -64,6 +66,7 @@ export const setupShutdownHandler = (logger: Logger, resources: ShutdownResource
 		await step("Stopping monitors", () =>
 			Promise.allSettled(Array.from(resources.monitors.values()).map((monitor) => monitor.stop())),
 		);
+		await step("Flushing pending notifications", () => resources.notifier?.flush());
 		await step("Closing queues", () => Promise.allSettled(resources.queues.map((queue) => queue.close())));
 		await step("Quitting redis connection", () => resources.redisConnection.quit());
 		await step("Closing database", () => resources.db.close());

@@ -53,11 +53,18 @@ flowchart TD
         Z --> AA([Fertig])
     end
 
+    subgraph NOTIFY["📣 Benachrichtigung (optional, SERVER_NOTIFICATIONS_WEBHOOK_URL)"]
+        FAIL["Job endgültig fehlgeschlagen\n(alle Versuche verbraucht)"] --> N1["Notifier: Flutbegrenzung je Queue\n1 Meldung / 60 s + Sammelmeldung\n(flush beim Herunterfahren)"]
+        N1 --> N2["notifications Job in Queue stellen\nattempts: 6, exponential backoff ab 30 s"]
+        N2 --> N3["notifications Worker (Concurrency 1)\nPOST Webhook, Timeout 5 s\nkeine Meldung bei eigenem Fehlschlag"]
+    end
+
     subgraph EXTERNAL["Externe Systeme"]
         GD[(Google Drive\nSrc-Folder)]
         GD2[(Google Drive\nDst-Folder)]
         PL[(Paperless-ngx)]
         RD[(Redis)]
+        HS[(Matrix Hookshot\nWebhook)]
     end
 
     L <-->|files.watch API| GD
@@ -72,3 +79,8 @@ flowchart TD
     V -->|BullMQ| RD
     I -->|BullMQ| RD
     P2 -->|BullMQ| RD
+    W -.->|endgültig fehlgeschlagen| FAIL
+    T -.->|endgültig fehlgeschlagen| FAIL
+    P3 -.->|endgültig fehlgeschlagen| FAIL
+    N2 -->|BullMQ| RD
+    N3 -->|HTTP POST| HS

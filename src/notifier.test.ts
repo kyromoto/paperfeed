@@ -1,11 +1,13 @@
 import type { Logger } from "@logtape/logtape";
 import { afterEach, beforeEach, describe, expect, it, type Mock, vi } from "vitest";
 import {
+	attachNotificationLogging,
 	createNotifier,
 	type FinalFailure,
 	formatFailure,
 	formatSummary,
 	formatTest,
+	makeNotificationProcessor,
 	type WebhookBody,
 } from "./notifier";
 
@@ -276,6 +278,226 @@ describe("notifier", () => {
 			post.mockRejectedValue(Object.assign(new Error("connect ECONNREFUSED 10.0.0.1:8008"), { code: "ECONNREFUSED" }));
 
 			await expect(notifierWith().sendTest()).rejects.toThrow("ECONNREFUSED");
+		});
+	});
+
+	describe("with a durable queue (enqueue)", () => {
+		let enqueue: Mock<(body: WebhookBody) => Promise<unknown>>;
+
+		const queuedNotifier = () => {
+			const notifier = createNotifier({ url: URL, logger: logger as unknown as Logger, post, enqueue });
+			if (!notifier) {
+				throw new Error("expected a notifier");
+			}
+			return notifier;
+		};
+
+		beforeEach(() => {
+			enqueue = vi.fn<(body: WebhookBody) => Promise<unknown>>(async () => undefined);
+		});
+
+		it("hands the message to the queue instead of posting it", async () => {
+			queuedNotifier().notifyFinalFailure(failure());
+			await vi.advanceTimersByTimeAsync(0);
+
+			expect(enqueue).toHaveBeenCalledTimes(1);
+			expect(enqueue).toHaveBeenCalledWith({ username: "paperfeed", text: formatFailure(failure()) });
+			expect(post).not.toHaveBeenCalled();
+		});
+
+		it("never puts the webhook url into the queued message", async () => {
+			queuedNotifier().notifyFinalFailure(failure());
+			await vi.advanceTimersByTimeAsync(0);
+
+			expect(JSON.stringify(enqueue.mock.calls)).not.toContain("secret-path");
+		});
+
+		it("keeps the flood control: one message per window and a summary of the rest", async () => {
+			const notifier = queuedNotifier();
+			for (let i = 0; i < 4; i += 1) {
+				notifier.notifyFinalFailure(failure({ label: `file-${i}.pdf processing` }));
+			}
+
+			await vi.advanceTimersByTimeAsync(59_999);
+			expect(enqueue).toHaveBeenCalledTimes(1);
+
+			await vi.advanceTimersByTimeAsync(1);
+			expect(enqueue).toHaveBeenCalledTimes(2);
+			expect(enqueue.mock.calls[1][0].text).toContain("3 more jobs failed permanently");
+		});
+
+		it("logs a warning and does not throw when the queue is not reachable", async () => {
+			enqueue.mockRejectedValue(new Error("Connection is closed."));
+
+			expect(() => queuedNotifier().notifyFinalFailure(failure())).not.toThrow();
+			await vi.advanceTimersByTimeAsync(0);
+
+			expect(logger.warn).toHaveBeenCalledWith(
+				expect.stringContaining("Failed to queue notification: Connection is closed."),
+				expect.anything(),
+			);
+		});
+
+		it("still sends the test message directly so that notify-test can report the result", async () => {
+			await queuedNotifier().sendTest();
+
+			expect(post).toHaveBeenCalledTimes(1);
+			expect(enqueue).not.toHaveBeenCalled();
+		});
+	});
+
+	describe("flush", () => {
+		it("queues a summary that is still held back right away and cancels its timer", async () => {
+			const enqueue = vi.fn<(body: WebhookBody) => Promise<unknown>>(async () => undefined);
+			const notifier = createNotifier({ url: URL, logger: logger as unknown as Logger, post, enqueue });
+			notifier?.notifyFinalFailure(failure());
+			notifier?.notifyFinalFailure(failure({ label: "b.pdf processing" }));
+			notifier?.notifyFinalFailure(failure({ label: "c.pdf processing" }));
+			await vi.advanceTimersByTimeAsync(0);
+			expect(enqueue).toHaveBeenCalledTimes(1);
+
+			await notifier?.flush();
+
+			expect(enqueue).toHaveBeenCalledTimes(2);
+			expect(enqueue.mock.calls[1][0].text).toContain("2 more jobs failed permanently");
+
+			await vi.advanceTimersByTimeAsync(5 * 60_000);
+			expect(enqueue).toHaveBeenCalledTimes(2);
+		});
+
+		it("queues one summary per queue with held back failures", async () => {
+			const enqueue = vi.fn<(body: WebhookBody) => Promise<unknown>>(async () => undefined);
+			const notifier = createNotifier({ url: URL, logger: logger as unknown as Logger, post, enqueue });
+			for (const queue of ["process-changes", "renew-channel"]) {
+				notifier?.notifyFinalFailure(failure({ queue }));
+				notifier?.notifyFinalFailure(failure({ queue }));
+			}
+			await vi.advanceTimersByTimeAsync(0);
+			enqueue.mockClear();
+
+			await notifier?.flush();
+
+			expect(enqueue).toHaveBeenCalledTimes(2);
+		});
+
+		it("does nothing when no summary is held back", async () => {
+			const enqueue = vi.fn<(body: WebhookBody) => Promise<unknown>>(async () => undefined);
+			const notifier = createNotifier({ url: URL, logger: logger as unknown as Logger, post, enqueue });
+			notifier?.notifyFinalFailure(failure());
+			await vi.advanceTimersByTimeAsync(0);
+			enqueue.mockClear();
+
+			await notifier?.flush();
+
+			expect(enqueue).not.toHaveBeenCalled();
+		});
+
+		it("does nothing when nothing happened at all", async () => {
+			await expect(notifierWith().flush()).resolves.toBeUndefined();
+
+			expect(post).not.toHaveBeenCalled();
+		});
+
+		it("does not let the timer of the flushed window end the next window of the same queue too early", async () => {
+			const enqueue = vi.fn<(body: WebhookBody) => Promise<unknown>>(async () => undefined);
+			const notifier = createNotifier({ url: URL, logger: logger as unknown as Logger, post, enqueue });
+			notifier?.notifyFinalFailure(failure());
+			await notifier?.flush();
+
+			await vi.advanceTimersByTimeAsync(1_000);
+			notifier?.notifyFinalFailure(failure({ label: "b.pdf processing" }));
+			notifier?.notifyFinalFailure(failure({ label: "c.pdf processing" }));
+			// the first window would have ended here
+			await vi.advanceTimersByTimeAsync(59_000);
+			expect(enqueue).toHaveBeenCalledTimes(2);
+
+			await vi.advanceTimersByTimeAsync(1_000);
+			expect(enqueue).toHaveBeenCalledTimes(3);
+			expect(enqueue.mock.calls[2][0].text).toContain("1 more job failed permanently");
+		});
+
+		it("starts a fresh window after the flush", async () => {
+			const enqueue = vi.fn<(body: WebhookBody) => Promise<unknown>>(async () => undefined);
+			const notifier = createNotifier({ url: URL, logger: logger as unknown as Logger, post, enqueue });
+			notifier?.notifyFinalFailure(failure());
+			await notifier?.flush();
+			enqueue.mockClear();
+
+			notifier?.notifyFinalFailure(failure({ label: "after.pdf processing" }));
+			await vi.advanceTimersByTimeAsync(0);
+
+			expect(enqueue).toHaveBeenCalledTimes(1);
+			expect(enqueue.mock.calls[0][0].text).toContain("after.pdf processing");
+		});
+	});
+
+	describe("notification processor (worker of the queue)", () => {
+		const body: WebhookBody = { username: "paperfeed", text: "job failed permanently" };
+
+		it("posts the stored message to the webhook", async () => {
+			await makeNotificationProcessor({ url: URL, post })({ data: body });
+
+			expect(post).toHaveBeenCalledWith(URL, body);
+		});
+
+		it("throws so that BullMQ retries, with status and without the webhook url", async () => {
+			post.mockRejectedValue(Object.assign(new Error(`Request to ${URL} failed`), { response: { status: 502 } }));
+
+			const error = await makeNotificationProcessor({ url: URL, post })({ data: body }).catch(
+				(reason: Error) => reason,
+			);
+
+			expect(error).toBeInstanceOf(Error);
+			expect((error as Error).message).toContain("HTTP 502");
+			expect((error as Error).message).not.toContain("secret-path");
+		});
+
+		it("reports the code of a network error", async () => {
+			post.mockRejectedValue(Object.assign(new Error("connect ECONNREFUSED 10.0.0.1:8008"), { code: "ECONNREFUSED" }));
+
+			await expect(makeNotificationProcessor({ url: URL, post })({ data: body })).rejects.toThrow("ECONNREFUSED");
+		});
+	});
+
+	describe("delivery logging", () => {
+		const setup = () => {
+			let handler: (job: unknown, error: Error) => void = () => undefined;
+			const worker = {
+				on: (_event: string, callback: typeof handler) => {
+					handler = callback;
+				},
+			};
+			const log = { warn: vi.fn(), error: vi.fn() };
+			attachNotificationLogging(log as unknown as Logger, worker as never);
+			return { fail: (job: unknown, message = "HTTP 502: bad gateway") => handler(job, new Error(message)), log };
+		};
+
+		const job = (attemptsMade: number) => ({ attemptsMade, opts: { attempts: 6 } });
+
+		it.each([1, 2, 5])("warns about attempt %i of 6 because it will be retried", (attemptsMade) => {
+			const { fail, log } = setup();
+
+			fail(job(attemptsMade));
+
+			expect(log.warn).toHaveBeenCalledWith(expect.stringContaining(`attempt ${attemptsMade}/6`));
+			expect(log.error).not.toHaveBeenCalled();
+		});
+
+		it("logs an error once all attempts are used up", () => {
+			const { fail, log } = setup();
+
+			fail(job(6));
+
+			expect(log.error).toHaveBeenCalledWith(expect.stringContaining("could not be delivered after 6 attempts"));
+			expect(log.warn).not.toHaveBeenCalled();
+		});
+
+		it("treats a failure without a job as final", () => {
+			const { fail, log } = setup();
+
+			fail(undefined);
+
+			expect(log.error).toHaveBeenCalledTimes(1);
 		});
 	});
 });

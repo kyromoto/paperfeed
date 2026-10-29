@@ -240,12 +240,14 @@ async function requeue(ctx: Context) {
 	);
 
 	const redisConnection = await connectRedis(config.server.queue.redis.url);
-	const { collectChangesQueue, processChangesQueue, renewChannelQueue } = createQueues(
+	const { collectChangesQueue, processChangesQueue, renewChannelQueue, notificationsQueue } = createQueues(
 		redisConnection,
 		config.server.queue.redis.prefix,
 	);
 	ctx.onClose(() =>
-		Promise.allSettled([collectChangesQueue, processChangesQueue, renewChannelQueue].map((q) => q.close())),
+		Promise.allSettled(
+			[collectChangesQueue, processChangesQueue, renewChannelQueue, notificationsQueue].map((q) => q.close()),
+		),
 	);
 	ctx.onClose(() => redisConnection.quit());
 

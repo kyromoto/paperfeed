@@ -18,7 +18,7 @@ import { type CollectChangesJobPayload, type CollectChangesJobResult, FileProces
 import { FileStore } from "./file-store";
 import { getDriveClient } from "./lib";
 import { configureLogging, ROOT_LOGGER_KEY } from "./logging";
-import { createNotifier } from "./notifier";
+import { attachNotificationLogging, createNotifier, makeNotificationProcessor } from "./notifier";
 import {
 	makeCollectChangesQueueProcessor,
 	makeProcessChangesQueueProcessor,
@@ -62,7 +62,7 @@ async function main() {
 	const redisConnection = await connectRedis(config.server.queue.redis.url);
 
 	logger.info("Initializing queues ...");
-	const { collectChangesQueue, processChangesQueue, renewChannelQueue } = createQueues(
+	const { collectChangesQueue, processChangesQueue, renewChannelQueue, notificationsQueue } = createQueues(
 		redisConnection,
 		config.server.queue.redis.prefix,
 	);
@@ -91,11 +91,24 @@ async function main() {
 		concurrency: config.server.queue.concurrency.renew,
 	});
 
+	const notificationsUrl = config.server.notifications?.webhook_url;
 	const notifier = createNotifier({
-		url: config.server.notifications?.webhook_url,
+		url: notificationsUrl,
 		logger: logger.getChild("notifier"),
+		enqueue: (body) => notificationsQueue.add("notify", body),
 	});
 	logger.info(`Notifications for permanently failed jobs: ${notifier ? "enabled" : "disabled"}`);
+
+	// delivery of the messages: a queue with retries, its failures are only logged (no notification about notifications)
+	const notificationsWorker = notificationsUrl
+		? new bullmq.Worker(notificationsQueue.name, makeNotificationProcessor({ url: notificationsUrl }), {
+				...workerOptions,
+				concurrency: 1,
+			})
+		: undefined;
+	if (notificationsWorker) {
+		attachNotificationLogging(logger.getChild("notifier"), notificationsWorker);
+	}
 	const onFinalFailure = notifier?.notifyFinalFailure;
 
 	attachWorkerLogging<CollectChangesJobPayload, CollectChangesJobResult>(
@@ -219,9 +232,15 @@ async function main() {
 	setupShutdownHandler(logger.getChild("shutdown"), {
 		server,
 		renewalSchedulerInterval,
-		workers: [collectChangesWorker, processChangesWorker, renewChannelWorker],
+		workers: [
+			collectChangesWorker,
+			processChangesWorker,
+			renewChannelWorker,
+			...(notificationsWorker ? [notificationsWorker] : []),
+		],
 		monitors,
-		queues: [collectChangesQueue, processChangesQueue, renewChannelQueue],
+		notifier,
+		queues: [collectChangesQueue, processChangesQueue, renewChannelQueue, notificationsQueue],
 		redisConnection,
 		db,
 	});

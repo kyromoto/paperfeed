@@ -49,6 +49,7 @@ describe("setupShutdownHandler", () => {
 				["a", { stop: async () => void order.push("monitor-a") }],
 				["b", { stop: async () => void order.push("monitor-b") }],
 			]),
+			notifier: { flush: async () => void order.push("notifier-flush") },
 			queues: [{ close: async () => void order.push("queue-1") }, { close: async () => void order.push("queue-2") }],
 			redisConnection: { quit: async () => void order.push("redis") },
 			db: { close: record("db") },
@@ -91,6 +92,7 @@ describe("setupShutdownHandler", () => {
 			"worker-2",
 			"monitor-a",
 			"monitor-b",
+			"notifier-flush",
 			"queue-1",
 			"queue-2",
 			"redis",
@@ -171,6 +173,47 @@ describe("setupShutdownHandler", () => {
 		await flush();
 
 		expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("not running"), expect.anything());
+		expect(order).toContain("db");
+		expect(exit).toHaveBeenCalledWith(0);
+	});
+
+	it("hands over pending notifications after the workers and monitors and before it closes the queues", async () => {
+		setup();
+
+		handlers.SIGTERM();
+		await flush();
+
+		const at = (name: string) => order.indexOf(name);
+		expect(at("notifier-flush")).toBeGreaterThan(at("worker-2"));
+		expect(at("notifier-flush")).toBeGreaterThan(at("monitor-b"));
+		expect(at("notifier-flush")).toBeLessThan(at("queue-1"));
+	});
+
+	it("keeps going when handing over the notifications fails", async () => {
+		resources.notifier = {
+			flush: async () => {
+				throw new Error("redis already gone");
+			},
+		};
+		setup();
+
+		handlers.SIGTERM();
+		await flush();
+
+		expect(logger.error).toHaveBeenCalledWith(expect.stringContaining("redis already gone"), expect.anything());
+		expect(order).toContain("queue-1");
+		expect(order).toContain("db");
+		expect(exit).toHaveBeenCalledWith(0);
+	});
+
+	it("shuts down as before when notifications are not configured", async () => {
+		resources.notifier = undefined;
+		setup();
+
+		handlers.SIGTERM();
+		await flush();
+
+		expect(order).not.toContain("notifier-flush");
 		expect(order).toContain("db");
 		expect(exit).toHaveBeenCalledWith(0);
 	});

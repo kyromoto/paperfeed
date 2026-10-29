@@ -7,10 +7,12 @@ import type {
 	ProcessChangesJobPayload,
 	ProcessChangesJobResult,
 } from "./file-processor";
+import type { WebhookBody } from "./notifier";
 
 export const COLLECT_CHANGES_QUEUE = "collect-changes";
 export const PROCESS_CHANGES_QUEUE = "process-changes";
 export const RENEW_CHANNEL_QUEUE = "renew-channel";
+export const NOTIFICATIONS_QUEUE = "notifications";
 
 export const connectRedis = async (url: string) => {
 	const redisOptions: RedisOptions = { maxRetriesPerRequest: null };
@@ -62,5 +64,16 @@ export const createQueues = (connection: IORedis, prefix: string) => {
 		},
 	});
 
-	return { collectChangesQueue, processChangesQueue, renewChannelQueue };
+	const notificationsQueue = new bullmq.Queue<WebhookBody>(NOTIFICATIONS_QUEUE, {
+		...queueOptions,
+		defaultJobOptions: {
+			// 30 s, 60 s, 120 s, 240 s, 480 s between the six attempts: bridges a webhook outage of about 15 minutes
+			attempts: 6,
+			backoff: { type: "exponential", delay: 30_000 },
+			removeOnComplete: { age: 60 * 60 * 24 }, // 1 Day
+			removeOnFail: { age: 60 * 60 * 24 * 7 }, // 1 Week
+		},
+	});
+
+	return { collectChangesQueue, processChangesQueue, renewChannelQueue, notificationsQueue };
 };
