@@ -1,0 +1,8 @@
+# Dependency install scripts must be allowed explicitly (pnpm blocks them by default).
+allowBuilds:
+  # native SQLite binding, needed at runtime
+  better-sqlite3: true
+  # bundler binary used by vitest/tsx
+  esbuild: true
+  # optional BullMQ speed-up with a pure JavaScript fallback
+  msgpackr-extract: false

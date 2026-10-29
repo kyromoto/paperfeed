@@ -41,15 +41,16 @@ SERVER_DRIVE_MONITOR_WEBHOOK_URL=https://your-public-url.example.com
 
 > **Breaking change:** the former `server:` block in the YAML is no longer accepted. The app refuses to start and `node build/cli.js validate-config` lists the variable to set for each key. See [Migrating from the old `server:` block](docs/configuration.md#migrating-from-the-old-server-block).
 
-For local development copy `.env.example` to `.env` (`npm run dev` and `npm run cli` read it) and `config.example.yml` to `config/config.yml`.
+For local development copy `.env.example` to `.env` (`pnpm run dev` and `pnpm run cli` read it) and `config.example.yml` to `config/config.yml`.
 
 ## Running
 
 ### Development
 
 ```bash
-npm install
-npm run dev
+corepack enable   # once, activates the pnpm version pinned in package.json
+pnpm install
+pnpm run dev
 ```
 
 ### Production (Docker)
@@ -93,9 +94,9 @@ services:
 ## Development
 
 ```bash
-npm test            # run all tests once (Vitest, src/**/*.test.ts)
-npm run test:watch  # watch mode
-npx biome check     # lint and format check
+pnpm test              # run all tests once (Vitest, src/**/*.test.ts)
+pnpm run test:watch    # watch mode
+pnpm exec biome check  # lint and format check
 ```
 
 Tests live next to the code (`src/<module>.test.ts`) and need no external services.
@@ -107,7 +108,7 @@ One-off maintenance commands ship in the same image and use the same `CONFIG_PAT
 ```bash
 node build/cli.js <command>                         # in the container
 docker exec <container> node build/cli.js <command> # against a running container
-npm run cli -- <command>                            # local development
+pnpm run cli <command>                              # local development
 ```
 
 | Command | Description |

@@ -1,14 +1,30 @@
-FROM node:24.22.2-alpine3.24 AS builder
+FROM node:24.22.2-alpine3.24 AS base
 
 WORKDIR /app
 
-COPY package*.json .
-COPY tsconfig.json .
-COPY tsconfig.build.json .
-COPY src src
+# pnpm is pinned through "packageManager" in package.json
+RUN corepack enable
 
-RUN npm ci
-RUN npm run build
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+
+
+
+FROM base AS builder
+
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+	pnpm install --frozen-lockfile
+
+COPY tsconfig.json tsconfig.build.json ./
+COPY src src
+RUN pnpm run build
+
+
+
+# production dependencies are installed here so that pnpm itself does not end up in the final image
+FROM base AS prod-deps
+
+RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
+	pnpm install --prod --frozen-lockfile
 
 
 
@@ -18,10 +34,9 @@ WORKDIR /app
 
 RUN apk upgrade --no-cache
 
-COPY package*.json .
+COPY package.json ./
+COPY --from=prod-deps /app/node_modules ./node_modules
 COPY --from=builder /app/build ./build
-
-RUN npm ci --omit=dev && npm cache clean --force
 
 ENV NODE_ENV=production
 

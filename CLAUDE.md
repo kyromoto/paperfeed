@@ -5,18 +5,20 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-npm run dev        # run with tsx watch (hot-reload), reads .env automatically
-npm run build      # compile TypeScript to ./build/ (tsconfig.build.json, excludes tests)
-npm test           # run all tests once (vitest, src/**/*.test.ts)
-npm run test:watch # tests in watch mode
+pnpm run dev       # run with tsx watch (hot-reload), reads .env automatically
+pnpm run build     # compile TypeScript to ./build/ (tsconfig.build.json, excludes tests)
+pnpm test          # run all tests once (vitest, src/**/*.test.ts)
+pnpm run test:watch # tests in watch mode
 
-npx biome check          # lint + format check
-npx biome lint           # lint only
-npx biome format         # show format diff (read-only)
-npx biome format --write # apply formatting
+pnpm exec biome check   # lint + format check
+pnpm exec biome lint    # lint only
+pnpm exec biome format  # show format diff (read-only)
+pnpm exec biome format --write # apply formatting
 ```
 
-Tests (Vitest) live next to the code as `src/<module>.test.ts`. They are excluded from `npm run build` and the Docker image, but `npx tsc --noEmit` type-checks them. They must run offline (no Redis, Docker, Google, Paperless); use in-memory SQLite (`new Database(":memory:")` + `migrate(db)`) or fakes. New pure logic and fixes for specified behavior come with a test; CI runs `npm test` before the release.
+Package manager: **pnpm**, pinned via `packageManager` in `package.json` (`corepack enable` once). CI and Docker use `pnpm install --frozen-lockfile`; dependency install scripts must be allowed explicitly in `pnpm-workspace.yaml` (`allowBuilds`: `better-sqlite3` and `esbuild` yes, `msgpackr-extract` no). Do not add a `package-lock.json`.
+
+Tests (Vitest) live next to the code as `src/<module>.test.ts`. They are excluded from `pnpm run build` and the Docker image, but `pnpm exec tsc --noEmit` type-checks them. They must run offline (no Redis, Docker, Google, Paperless); use in-memory SQLite (`new Database(":memory:")` + `migrate(db)`) or fakes. New pure logic and fixes for specified behavior come with a test; CI runs `pnpm test` before the release.
 
 Configuration reference: [`docs/configuration.md`](docs/configuration.md) — **keep it in sync** whenever config keys, `SERVER_*` variables, defaults or the YAML schema change. For dev copy `.env.example` to `.env`.
 
@@ -90,7 +92,7 @@ On startup, all files currently in the src folder are scanned and queued directl
 |---|---|
 | `src/main.ts` | Wires everything together; owns queue/worker setup and startup scan |
 | `src/shutdown.ts` | `setupShutdownHandler()` — signal/uncaughtException handler with ordered shutdown (http → scheduler → workers → monitors → queues → redis → db, 30s timeout). Registered at the end of `main()` once all resources exist. Replaces `catch-exit`, which does not await async callbacks. |
-| `src/cli.ts` | Admin CLI (`node build/cli.js <cmd>`, `npm run cli -- <cmd>`): `validate-config [--online]`, `healthcheck` (used by the Dockerfile `HEALTHCHECK`, port from config), `migrate`, `reset-token`, `reset-channel`, `requeue`. Exit codes 0/1/2. Dynamic imports keep `help` working without `CONFIG_PATH`. Closes SQLite/Redis/queues after every command. |
+| `src/cli.ts` | Admin CLI (`node build/cli.js <cmd>`, `pnpm run cli <cmd>`): `validate-config [--online]`, `healthcheck` (used by the Dockerfile `HEALTHCHECK`, port from config), `migrate`, `reset-token`, `reset-channel`, `requeue`. Exit codes 0/1/2. Dynamic imports keep `help` working without `CONFIG_PATH`. Closes SQLite/Redis/queues after every command. |
 | `src/version.ts` | `APP_VERSION` read from `package.json` (`npm_package_version` is only set when started via npm) |
 | `src/logging.ts` | `configureLogging()` — shared by app and CLI (redaction, JSON lines in production) |
 | `src/queues.ts` | `connectRedis()` and `createQueues()` — queue names and default job options, shared by app and CLI so `requeue` behaves like the startup scan |

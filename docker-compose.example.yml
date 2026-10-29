@@ -12,7 +12,7 @@ services:
       retries: 5
 
   # The app itself. Disabled by default (docker compose --profile app up), in development it usually runs on the
-  # host (npm run dev) and ngrok forwards to it.
+  # host (pnpm run dev) and ngrok forwards to it.
   paperfeed:
     image: ghcr.io/kyromoto/paperless-gdrive-link:latest
     profiles: ["app"]
