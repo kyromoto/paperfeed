@@ -111,6 +111,10 @@ On startup, all files currently in the src folder are scanned and queued directl
 
 [`app-sequence.mermaid`](app-sequence.mermaid) is the authoritative flow diagram. **Update it whenever the processing pipeline changes** (queue names, jobId scheme, step order, new/removed actors). It reflects the current state including RC fixes.
 
+## 12-Factor report
+
+[`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md) rates the app against the twelve-factor methodology (status, current vs. target state, effort per factor). **Update it whenever** config handling, state storage, process model, shutdown, logging, Docker/CI, or one of the "12-Factor" backlog items changes (status, current state, overall score, date/version).
+
 ## Backlog
 
-Open work items are tracked in [`BACKLOG.md`](BACKLOG.md). Read it before working on race conditions or the DriveMonitor.
+Open work items are tracked in [`BACKLOG.md`](BACKLOG.md). Read it before working on race conditions or the DriveMonitor. The "12-Factor" section there derives from the 12-factor report.
