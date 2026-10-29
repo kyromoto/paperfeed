@@ -7,6 +7,28 @@ import type { Account, Config, DriveAccount } from "./types";
 
 export type RenewChannelJobPayload = { accountId: string };
 
+type ApiErrorLike = {
+	status?: unknown;
+	code?: unknown;
+	response?: { data?: { error?: { errors?: { reason?: unknown }[] } } };
+};
+
+/** Compact, log-safe view of a Google API error: the library error carries the whole request and response. */
+export const describeApiError = (error: unknown) => {
+	const details: ApiErrorLike = typeof error === "object" && error !== null ? error : {};
+	const status = [details.status, details.code].find((value): value is number => typeof value === "number");
+	const reason = details.response?.data?.error?.errors?.[0]?.reason;
+
+	return {
+		status,
+		code: typeof details.code === "string" ? details.code : undefined,
+		reason: typeof reason === "string" ? reason : undefined,
+		message: error instanceof Error ? error.message : String(error),
+	};
+};
+
+const isNotFound = (error: unknown) => describeApiError(error).status === 404;
+
 export class DriveMonitor {
 	private driveAccount: DriveAccount;
 	private driveClient: drive_v3.Drive;
@@ -56,7 +78,13 @@ export class DriveMonitor {
 					this.logger.info(`Stopped existing channel ${existing.channelId}`);
 				})
 				.catch((err) => {
-					this.logger.warn(`Failed to stop existing channel ${existing.channelId}: ${err.message}`, { error: err });
+					const error = describeApiError(err);
+
+					if (isNotFound(err)) {
+						this.logger.info(`Existing channel ${existing.channelId} is already stopped or expired`, { error });
+					} else {
+						this.logger.warn(`Failed to stop existing channel ${existing.channelId}: ${error.message}`, { error });
+					}
 				});
 		}
 
@@ -123,19 +151,28 @@ export class DriveMonitor {
 		this.resourceId = null;
 		this.channelToken = null;
 
-		await this.driveClient.channels
-			.stop({
+		try {
+			await this.driveClient.channels.stop({
 				requestBody: {
 					id: cid,
 					resourceId: rid,
 				},
-			})
-			.catch((err) => {
-				this.logger.error(`Failed to stop channel with id ${cid}: ${err.message}`, { error: err });
 			});
+		} catch (err) {
+			const error = describeApiError(err);
+
+			if (!isNotFound(err)) {
+				// keep the persisted state so the next start can still try to stop the channel
+				this.logger.error(`Failed to stop channel with id ${cid}: ${error.message}`, { error });
+				return;
+			}
+
+			this.logger.info(`Channel ${cid} is already stopped or expired`, { error });
+		}
+
+		this.channelRepository.delete(this.account.id);
 	}
 
-	/** Checks the `X-Goog-Channel-Token` of an incoming webhook against the token set when the channel was created. */
 	public verifyChannelToken(token: string | undefined): boolean {
 		if (!this.channelToken || !token) {
 			return false;
