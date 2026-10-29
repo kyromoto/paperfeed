@@ -1,3 +1,10 @@
+## [1.10.2](https://github.com/kyromoto/paperfeed/compare/v1.10.1...v1.10.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* requeue reports newly queued and already queued files separately ([ba66ab5](https://github.com/kyromoto/paperfeed/commit/ba66ab5a6734a69758c0d736e0dfa2e0aee8455b))
+
 ## [1.10.1](https://github.com/kyromoto/paperfeed/compare/v1.10.0...v1.10.1) (2026-10-29)
 
 
