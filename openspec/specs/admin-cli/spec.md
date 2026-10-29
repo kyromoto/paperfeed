@@ -45,17 +45,6 @@ Das System SHALL mit `validate-config --online` zusätzlich Redis (Ping), pro Ac
 - **WHEN** der Paperless-Login fehlschlägt oder zeitüberschreitet
 - **THEN** wird der Fehler für diesen Account ausgegeben, die übrigen Prüfungen laufen weiter und der Exit-Code ist 1
 
-### Requirement: Healthcheck
-Das System SHALL mit `healthcheck` den Endpoint `GET /health` der lokalen App unter `127.0.0.1` auf dem Port `server.http.port` der Konfiguration aufrufen (Timeout 4 s) und mit Exit-Code 0 bei Erfolg und 1 bei Fehler beenden, sodass das Docker-`HEALTHCHECK` keinen festen Port enthalten muss.
-
-#### Scenario: App läuft
-- **WHEN** die App auf dem konfigurierten Port antwortet
-- **THEN** gibt die CLI `OK <url>` aus und beendet sich mit Exit-Code 0
-
-#### Scenario: App nicht erreichbar
-- **WHEN** die Verbindung fehlschlägt oder zeitüberschreitet
-- **THEN** gibt die CLI `FAILED <url>` mit der Ursache aus und beendet sich mit Exit-Code 1
-
 ### Requirement: Migrationen ausführen
 Das System SHALL mit `migrate` die SQLite-Migrationen im Verzeichnis `{data_path}/db` ausführen, ohne Redis zu verbinden oder die App zu starten.
 
@@ -113,3 +102,14 @@ Das System SHALL die schreibenden Kommandos `reset-token` und `reset-channel` au
 #### Scenario: App läuft
 - **WHEN** `reset-token` oder `reset-channel` ausgeführt wird
 - **THEN** zeigt die CLI die Warnung und führt die Aktion aus
+
+### Requirement: Healthcheck
+Das System SHALL mit `healthcheck` den Endpoint `GET /health` der lokalen App unter `127.0.0.1` auf dem Port `server.http.port` der Konfiguration aufrufen (Timeout 4 s) und mit Exit-Code 0 bei Erfolg und 1 bei Fehler beenden, sodass das Docker-`HEALTHCHECK` keinen festen Port enthalten muss.
+
+#### Scenario: App läuft
+- **WHEN** die App auf dem konfigurierten Port antwortet
+- **THEN** gibt die CLI `OK <url>` aus und beendet sich mit Exit-Code 0
+
+#### Scenario: App nicht erreichbar
+- **WHEN** die Verbindung fehlschlägt oder zeitüberschreitet
+- **THEN** gibt die CLI `FAILED <url>` mit der Ursache aus und beendet sich mit Exit-Code 1
