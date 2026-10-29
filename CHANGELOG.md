@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/kyromoto/paperfeed/compare/v1.10.2...v1.11.0) (2026-10-29)
+
+
+### Features
+
+* notify about permanently failed jobs through a webhook ([c171157](https://github.com/kyromoto/paperfeed/commit/c17115764b9958b5df342925a407a5a56a7ed2ce))
+
 ## [1.10.2](https://github.com/kyromoto/paperfeed/compare/v1.10.1...v1.10.2) (2026-10-29)
 
 
