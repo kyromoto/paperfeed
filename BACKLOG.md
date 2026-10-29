@@ -1,18 +1,8 @@
 # Backlog
 
-## Feature — Admin Web UI (Bull Board)
+## Entfallen — Admin Web UI (Bull Board)
 
-**Ziel:** Einfache, auth-freie Admin-Oberfläche unter `/admin/queues`, auf der aktive, wartende, abgeschlossene und fehlgeschlagene Jobs aller drei Queues sichtbar sind.
-
-**Umsetzung:**
-- Pakete `@bull-board/express` und `@bull-board/api` installieren
-- `ExpressAdapter` + `createBullBoard` in `src/main.ts` einbinden, Queue-Instanzen (`collect-changes`, `process-changes`, `renew-channel`) als `BullMQAdapter` registrieren
-- Router unter `/admin/queues` mounten (vor anderen Routes)
-- Queue-Instanzen ggf. aus dem lokalen Scope herauslösen, damit sie dem Board-Setup zugänglich sind
-
-**Hinweis:** `renew-channel` unbedingt mit aufnehmen — seit dem SQLite/Poller-Refactor der Channel-Renewal-Logik (siehe CLAUDE.md) ist Bull Board dort der einzige Weg, Retries/fehlgeschlagene Renewals zu beobachten.
-
-**Hinweis:** Kein Auth vorgesehen — nur für internes/lokales Deployment gedacht.
+Wird nicht im Backend umgesetzt. Bull Board läuft als **separater Container** (`deadly0/bull-board`, siehe `docker-compose.example.yml`) und bleibt im internen Docker-Netz. Gründe: keine unauthentifizierte Admin-UI auf dem öffentlich erreichbaren Webhook-Port, keine zusätzlichen Abhängigkeiten in der App, unabhängige Updates. Der Queue-Prefix (`server.queue.redis.prefix`, Default `paperless-gdrive-link`) muss `BULL_PREFIX` des Containers entsprechen; `renew-channel` ist dort neben `collect-changes` und `process-changes` sichtbar. Hinweise für den Betrieb stehen im README.
 
 ---
 

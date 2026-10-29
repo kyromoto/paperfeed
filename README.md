@@ -152,6 +152,14 @@ npm run cli -- <command>                            # local development
 
 `<account>` is the `id` or `name` of an entry in `accounts`. Exit codes: `0` success, `1` error, `2` usage error.
 
+## Queue monitoring (Bull Board)
+
+The app has no admin UI of its own. Run [Bull Board](https://github.com/felixmosh/bull-board) as a separate container next to Redis (see `docker-compose.example.yml`, image `deadly0/bull-board`) and keep it on the internal Docker network only, it has no authentication:
+
+- `REDIS_HOST` / `REDIS_PORT` point to the Redis used by the app.
+- `BULL_PREFIX` must equal `server.queue.redis.prefix` from the config (default `paperless-gdrive-link`).
+- It shows `collect-changes`, `process-changes` and `renew-channel`, including retries and failed channel renewals.
+
 ## Endpoints
 
 | Method | Path | Description |
