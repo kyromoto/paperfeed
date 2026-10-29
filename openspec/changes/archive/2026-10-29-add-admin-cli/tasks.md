@@ -25,10 +25,10 @@
 ## 4. Prüfung
 
 - [x] 4.1 `npx tsc --noEmit`, `npx biome ci src`, `npm run build`
-- [ ] 4.2 `validate-config` gegen `config/config.yml` (Exit 0) und eine absichtlich kaputte Kopie (Exit 1), `--online` gegen lokales docker-compose
+- [x] 4.2 `validate-config` gegen `config/config.yml` (Exit 0) und eine absichtlich kaputte Kopie (Exit 1), `--online` gegen lokales docker-compose
 - [x] 4.3 `migrate` auf leerem `data_path`, zweiter Lauf idempotent
-- [ ] 4.4 `reset-token`, `reset-channel`, `requeue` gegen laufende App und docker-compose: Zeile verschwindet, Poller legt Channel neu an, Jobs ohne Duplikate
-- [ ] 4.5 Regression: App startet unverändert (Logformat, Queue-Optionen, Shutdown)
+- [x] 4.4 `reset-token`, `reset-channel`, `requeue` gegen laufende App und docker-compose: Zeile verschwindet, Poller legt Channel neu an, Jobs ohne Duplikate (Erfolgsfall von `requeue` mit Dateien im Quellordner nicht getestet, nur 0 Dateien und Redis-Fehlerfall)
+- [x] 4.5 Regression: App startet unverändert (Logformat, Queue-Optionen, Shutdown)
 
 ## 5. Dokumentation und Abschluss
 

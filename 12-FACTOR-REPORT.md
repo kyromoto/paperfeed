@@ -27,7 +27,7 @@ Bewertung von paperfeed gegen die zwölf Faktoren von [12factor.net](https://12f
 | IX | Disposability | ✅ | Schneller Start. `src/shutdown.ts` (`setupShutdownHandler`) fährt bei SIGINT/SIGTERM/SIGHUP und uncaughtException sequentiell herunter: HTTP-Server → Scheduler → Worker (`worker.close()` wartet auf aktive Jobs) → Monitors (`channels.stop`) → Queues → Redis → DB, mit 30-s-Timeout. `catch-exit` entfernt (wartete nicht auf async Callbacks). | – | – | – |
 | X | Dev/Prod-Parität | ✅ | docker-compose mit Redis, Paperless, Bull-Board und ngrok bildet dieselben Backing Services ab. `docker-compose.example.yml` und `config.example.yml` sind eingecheckt. | – | – | – |
 | XI | Logs | ✅ | Logtape nach stdout, Redaction für JWT und Private-Key, JSON Lines bei `NODE_ENV=production`. Kein `console.*` mehr außerhalb des Loggers, Env und Config werden nicht mehr komplett geloggt. | – | – | – |
-| XII | Admin-Prozesse | ✅ | `src/cli.ts` im selben Image: `validate-config [--online]`, `migrate`, `reset-token`, `reset-channel`, `requeue` (`node build/cli.js <cmd>`, siehe README). Migrationen laufen weiterhin auch beim App-Start. | – | – | – |
+| XII | Admin-Prozesse | ✅ | `src/cli.ts` im selben Image: `validate-config [--online]`, `migrate`, `reset-token`, `reset-channel`, `requeue` (`node build/cli.js <cmd>`, siehe README; `requeue` mit Dateien im Quellordner noch nicht end-to-end getestet). Migrationen laufen weiterhin auch beim App-Start. | – | – | – |
 
 ## Weitere Befunde
 
