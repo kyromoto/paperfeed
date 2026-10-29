@@ -38,20 +38,6 @@ Versuche: 3/3
 
 Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines Punkts den Report aktualisieren (Status, Ist-Zustand, Gesamtergebnis).
 
-## Refactoring — Env-basierte Konfiguration (12-Factor III, IV, VII)
-
-**Eingriff:** Mittel. Siehe `12-FACTOR-REPORT.md`, Faktoren III, IV, VII.
-
-**Ziel:** Infrastruktur und Secrets aus Env-Variablen, YAML nur für die Account-Topologie.
-
-**Umsetzung:**
-- `src/env.ts`: optionale Variablen `PORT`, `REDIS_URL`, `REDIS_PREFIX`, `DATA_PATH`, `WEBHOOK_URL` sowie Secrets (Drive-Credentials, Paperless-Zugang)
-- `src/config-repository.ts`: Env-Werte überschreiben YAML-Werte vor der Zod-Validierung (abwärtskompatibel)
-- `src/types.ts`: betroffene `server.*`-Felder optional machen, Validierung nach dem Merge
-- README und `config.example.yml` anpassen
-
----
-
 ## Refactoring — Prozesstypen web / worker / scheduler (12-Factor VIII)
 
 **Eingriff:** Mittel–Hoch. Siehe `12-FACTOR-REPORT.md`, Faktor VIII.

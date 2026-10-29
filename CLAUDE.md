@@ -18,8 +18,11 @@ npx biome format --write # apply formatting
 
 Tests (Vitest) live next to the code as `src/<module>.test.ts`. They are excluded from `npm run build` and the Docker image, but `npx tsc --noEmit` type-checks them. They must run offline (no Redis, Docker, Google, Paperless); use in-memory SQLite (`new Database(":memory:")` + `migrate(db)`) or fakes. New pure logic and fixes for specified behavior come with a test; CI runs `npm test` before the release.
 
+Configuration reference: [`docs/configuration.md`](docs/configuration.md) — **keep it in sync** whenever config keys, `SERVER_*` variables, defaults or the YAML schema change. For dev copy `.env.example` to `.env`.
+
 Required env vars (put in `.env` for dev):
-- `CONFIG_PATH` — path to YAML config file (e.g. `config/config.yml`)
+- `CONFIG_PATH` — path to the YAML file with the accounts (e.g. `config/config.yml`), read-only
+- `SERVER_DATA_PATH`, `SERVER_QUEUE_REDIS_URL`, `SERVER_DRIVE_MONITOR_WEBHOOK_URL` — required `server` settings (all other `SERVER_*` have defaults, see docs)
 - `LOG_LEVEL` — `trace | debug | info | warning | error | fatal` (default: `info`)
 - `NODE_ENV` — `development | production` (default: `development`)
 
@@ -27,9 +30,11 @@ Required env vars (put in `.env` for dev):
 
 **Purpose:** Bridges Google Drive and Paperless-ngx. Files dropped into a Drive "src folder" are downloaded, uploaded to Paperless-ngx, and moved to a Drive "dst folder".
 
-### Config model (`src/types.ts`)
+### Config model (`src/types.ts`, `src/config-env.ts`)
 
-Three top-level entities defined in the YAML config and validated with Zod:
+The configuration is **composed** by `composeConfig()` (`src/config-env.ts`, pure, unit-tested): the `server` section comes **only** from `SERVER_*` environment variables (explicit table `SERVER_VARIABLES`, hierarchy kept in the name, e.g. `server.http.port` → `SERVER_HTTP_PORT`), the account topology from the read-only YAML at `CONFIG_PATH`. The result is validated with the unchanged Zod `Config` schema. A `server:` block in the YAML is rejected with the replacing variable names; errors name variables and key paths, never values (Redis URLs and YAML snippets can contain secrets). Secrets (`private_key`, `password`) stay in the YAML on purpose (read-only file outside the repo, mounted at deploy time).
+
+Three top-level entities are defined in the YAML config:
 - `DriveAccount` — Google service account credentials + channel expiry settings
 - `PaperlessEndpoint` — Paperless-ngx server URL + basic auth credentials
 - `Account` — joins one `DriveAccount` + one `PaperlessEndpoint` with a src and dst Drive folder ID
@@ -100,7 +105,8 @@ On startup, all files currently in the src folder are scanned and queued directl
 | `src/queue-processor.ts` | BullMQ job handler functions (thin adapters into `FileProcessor`) |
 | `src/queue-utils.ts` | `attachWorkerLogging` (worker event listeners) + `collectOutstandingJobs` (startup scan helper) |
 | `src/controllers.ts` | Express route handlers for `/webhook` and `/health` |
-| `src/config-repository.ts` | Reads/writes the YAML config file; parses with Zod |
+| `src/config-env.ts` | `composeConfig()`, `parseYaml()`, `SERVER_VARIABLES`, `ConfigError` — builds the `server` section from env, merges with the YAML accounts, validates with Zod |
+| `src/config-repository.ts` | Reads the YAML file (read-only, no write) and returns `composeConfig(...)` |
 | `src/repositories.ts` | `ConfigRepository` interface — abstracts config read access |
 | `src/env.ts` | Validates and exports env vars via Zod — **throws at import time** if `CONFIG_PATH` is missing |
 

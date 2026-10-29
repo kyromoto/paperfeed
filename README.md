@@ -21,72 +21,23 @@ Jobs are backed by [BullMQ](https://bullmq.io/) with Redis. Webhook channel rene
 
 ## Configuration
 
-The app is configured via a YAML file. Set `CONFIG_PATH` to point to it.
+Two sources, details and defaults in [docs/configuration.md](docs/configuration.md):
 
-```yaml
-server:
-  data_path: data               # SQLite database (db/) and temporary files (files/)
-  http:
-    port: 3000
-  queue:
-    redis:
-      url: redis://localhost:6379
-      prefix: paperless-gdrive-link   # optional, BullMQ key prefix
-    concurrency:                      # optional worker concurrency
-      collect: 5
-      process: 1
-      renew: 1
-    debounce:
-      collectChangesSec: 5            # optional, debounce for webhook-triggered change collection
-    renewPollIntervalSec: 15          # optional, how often channel expiry is checked (keep below 30)
-  drive_monitor:
-    webhook_url: https://your-public-url.example.com
+- **Environment variables** for everything deployment specific: `CONFIG_PATH`, `LOG_LEVEL`, `NODE_ENV` and the `SERVER_*` variables (port, Redis, data path, webhook URL, queue tuning).
+- **A YAML file** (`CONFIG_PATH`, mounted read-only) for the accounts: `accounts`, `drive_accounts`, `paperless_endpoints` including their credentials.
 
-drive_accounts:
-  - id: <uuid>
-    name: my-drive-account
-    props:
-      channel_expiration_sec: 3600   # how long each webhook channel lives
-      credentials:                    # Google service account JSON (inline)
-        type: service_account
-        project_id: ...
-        private_key: |
-          -----BEGIN PRIVATE KEY-----
-          ...
-          -----END PRIVATE KEY-----
-        client_email: ...@....iam.gserviceaccount.com
-        # ... remaining service account fields
+Minimal environment:
 
-paperless_endpoints:
-  - id: <uuid>
-    name: my-paperless
-    props:
-      server_url: http://paperless:8000
-      credentials:
-        username: user
-        password: secret
-
-accounts:
-  - id: <uuid>
-    name: Alice
-    props:
-      drive_account_id: <drive_accounts[*].id>
-      paperless_endpoint_id: <paperless_endpoints[*].id>
-      drive_src_folder_id: <Google Drive folder ID>
-      drive_dst_folder_id: <Google Drive folder ID>
+```bash
+CONFIG_PATH=/config/config.yml
+SERVER_DATA_PATH=/data
+SERVER_QUEUE_REDIS_URL=redis://redis:6379
+SERVER_DRIVE_MONITOR_WEBHOOK_URL=https://your-public-url.example.com
 ```
 
-Multiple `accounts` can be defined; each gets its own independent processing pipeline.
+> **Breaking change:** the former `server:` block in the YAML is no longer accepted. The app refuses to start and `node build/cli.js validate-config` lists the variable to set for each key. See [Migrating from the old `server:` block](docs/configuration.md#migrating-from-the-old-server-block).
 
-## Environment variables
-
-| Variable | Required | Description |
-|---|---|---|
-| `CONFIG_PATH` | yes | Path to the YAML config file |
-| `LOG_LEVEL` | no | `trace` / `debug` / `info` / `warning` / `error` / `fatal` (default: `info`) |
-| `NODE_ENV` | no | `development` / `production` (default: `development`) |
-
-For local development, put these in a `.env` file — `npm run dev` reads it automatically.
+For local development copy `.env.example` to `.env` (`npm run dev` and `npm run cli` read it) and `config.example.yml` to `config/config.yml`.
 
 ## Running
 
@@ -103,8 +54,10 @@ npm run dev
 docker build -t paperless-gdrive-link .
 docker run \
   -e CONFIG_PATH=/config/config.yml \
-  -e NODE_ENV=production \
-  -v /path/to/config:/config \
+  -e SERVER_DATA_PATH=/app/data \
+  -e SERVER_QUEUE_REDIS_URL=redis://redis:6379 \
+  -e SERVER_DRIVE_MONITOR_WEBHOOK_URL=https://your-public-url.example.com \
+  -v /path/to/config:/config:ro \
   -v /path/to/data:/app/data \
   -p 3000:3000 \
   paperless-gdrive-link
@@ -118,9 +71,11 @@ services:
     image: paperless-gdrive-link
     environment:
       CONFIG_PATH: /config/config.yml
-      NODE_ENV: production
+      SERVER_DATA_PATH: /app/data
+      SERVER_QUEUE_REDIS_URL: redis://broker:6379
+      SERVER_DRIVE_MONITOR_WEBHOOK_URL: https://your-public-url.example.com
     volumes:
-      - ./config:/config
+      - ./config:/config:ro
       - ./data:/app/data
     ports:
       - "3000:3000"

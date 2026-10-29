@@ -9,3 +9,4 @@ config*.yaml
 docker-compose*
 !config.example.yml
 !docker-compose.example.yml
+!.env.example

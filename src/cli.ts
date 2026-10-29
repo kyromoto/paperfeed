@@ -3,7 +3,7 @@ import { parseArgs } from "node:util";
 import type { Logger } from "@logtape/logtape";
 import axios from "axios";
 import IORedis from "ioredis";
-import * as yml from "yaml";
+import { ConfigError, composeConfig, parseYaml } from "./config-env";
 import type { Account, Config } from "./types";
 
 const EXIT_OK = 0;
@@ -239,7 +239,6 @@ const withTimeout = <T>(promise: Promise<T>, ms: number): Promise<T> => {
 
 async function validateConfig(ctx: Context) {
 	const env = await import("./env");
-	const { Config } = await import("./types");
 	let failed = false;
 
 	const fail = (message: string) => {
@@ -250,26 +249,30 @@ async function validateConfig(ctx: Context) {
 	let raw: unknown;
 	try {
 		const fs = await import("node:fs/promises");
-		raw = yml.parse(await fs.readFile(env.CONFIG_PATH, "utf-8"));
+		raw = parseYaml(await fs.readFile(env.CONFIG_PATH, "utf-8"));
 	} catch (error) {
-		// YAML parse errors quote the offending source line, so only the error code and position are reported
-		const code = error instanceof yml.YAMLParseError ? error.code : (error as NodeJS.ErrnoException).code;
-		const line = error instanceof yml.YAMLParseError ? ` at line ${error.linePos?.[0].line}` : "";
-		fail(`Cannot read ${env.CONFIG_PATH}: ${code ?? "unknown error"}${line}`);
-		return EXIT_ERROR;
-	}
-
-	const parsed = Config.safeParse(raw);
-
-	if (!parsed.success) {
-		for (const issue of parsed.error.issues) {
-			fail(`${issue.path.join(".") || "(root)"}: ${issue.message}`);
+		if (error instanceof ConfigError) {
+			error.issues.forEach(fail);
+		} else {
+			fail(`Cannot read ${env.CONFIG_PATH}: ${(error as NodeJS.ErrnoException).code ?? "unknown error"}`);
 		}
 		return EXIT_ERROR;
 	}
 
-	const config = parsed.data;
-	out(`✔ Schema valid (${env.CONFIG_PATH})`);
+	let config: Config;
+	try {
+		config = composeConfig(raw, process.env);
+	} catch (error) {
+		if (!(error instanceof ConfigError)) {
+			throw error;
+		}
+		for (const issue of error.issues) {
+			fail(issue);
+		}
+		return EXIT_ERROR;
+	}
+
+	out(`✔ Configuration valid (${env.CONFIG_PATH} + SERVER_* environment variables)`);
 
 	const lists = {
 		accounts: config.accounts,
@@ -310,7 +313,7 @@ async function validateConfig(ctx: Context) {
 			}
 		};
 
-		await check(`Redis ${config.server.queue.redis.url}`, async () => {
+		await check("Redis (SERVER_QUEUE_REDIS_URL)", async () => {
 			const redis = new IORedis(config.server.queue.redis.url, { maxRetriesPerRequest: 1, lazyConnect: true });
 			redis.on("error", () => {});
 			try {

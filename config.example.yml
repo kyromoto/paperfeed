@@ -1,16 +1,5 @@
-server:
-  data_path: data
-  http:
-    port: 3000
-  queue:
-    redis:
-      url: redis://localhost:6379
-    debounce:
-      collectChangesSec: 15
-  drive_monitor:
-    # publicly reachable HTTPS URL (e.g. the ngrok URL from docker-compose)
-    webhook_url: https://your-public-url.example.com
-
+# Account topology only. Deployment settings (port, Redis, data path, webhook URL, ...) are SERVER_* environment variables,
+# see .env.example and docs/configuration.md.
 accounts:
   - id: 00000000-0000-4000-8000-000000000001
     name: dev

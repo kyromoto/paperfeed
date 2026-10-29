@@ -57,7 +57,7 @@ async function main() {
 	const monitors = new Map<string, DriveMonitor>();
 	const processors = new Map<string, FileProcessor>();
 
-	logger.info(`Connecting to redis at ${config.server.queue.redis.url} ...`);
+	logger.info("Connecting to redis ...");
 	const redisConnection = await connectRedis(config.server.queue.redis.url);
 
 	logger.info("Initializing queues ...");

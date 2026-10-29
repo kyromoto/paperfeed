@@ -11,6 +11,26 @@ services:
       timeout: 3s
       retries: 5
 
+  # The app itself. Disabled by default (docker compose --profile app up), in development it usually runs on the
+  # host (npm run dev) and ngrok forwards to it.
+  paperfeed:
+    image: ghcr.io/kyromoto/paperless-gdrive-link:latest
+    profiles: ["app"]
+    depends_on:
+      redis:
+        condition: service_healthy
+    ports:
+      - "3000:3000"
+    environment:
+      CONFIG_PATH: /config/config.yml
+      SERVER_DATA_PATH: /data
+      SERVER_QUEUE_REDIS_URL: redis://redis:6379
+      SERVER_DRIVE_MONITOR_WEBHOOK_URL: https://your-public-url.example.com
+      # SERVER_HTTP_PORT: 3000
+    volumes:
+      - ./config/config.yml:/config/config.yml:ro
+      - ./data:/data
+
   bull-board:
     image: deadly0/bull-board:latest
     ports:
