@@ -42,6 +42,12 @@ const commands: Record<string, Command> = {
 		needsAccount: false,
 		run: healthcheck,
 	},
+	"notify-test": {
+		usage: "notify-test",
+		description: "Send a test message to the notification webhook (SERVER_NOTIFICATIONS_WEBHOOK_URL)",
+		needsAccount: false,
+		run: notifyTest,
+	},
 	migrate: {
 		usage: "migrate",
 		description: "Run SQLite migrations in {data_path}/db without starting the app",
@@ -127,6 +133,30 @@ async function healthcheck(ctx: Context) {
 		out(`FAILED ${url}: ${error instanceof Error ? error.message : String(error)}`);
 		return EXIT_ERROR;
 	}
+}
+
+async function notifyTest(ctx: Context) {
+	const config = await readConfig(ctx.logger);
+	const { createNotifier } = await import("./notifier");
+	const notifier = createNotifier({
+		url: config.server.notifications?.webhook_url,
+		logger: ctx.logger.getChild("notifier"),
+	});
+
+	if (!notifier) {
+		out("Notifications are not configured (SERVER_NOTIFICATIONS_WEBHOOK_URL is not set)");
+		return EXIT_ERROR;
+	}
+
+	try {
+		await notifier.sendTest();
+	} catch (error) {
+		out(`Test notification failed: ${error instanceof Error ? error.message : String(error)}`);
+		return EXIT_ERROR;
+	}
+
+	out("Test notification sent");
+	return EXIT_OK;
 }
 
 async function migrateCommand(ctx: Context) {
@@ -274,6 +304,7 @@ async function validateConfig(ctx: Context) {
 	}
 
 	out(`✔ Configuration valid (${env.CONFIG_PATH} + SERVER_* environment variables)`);
+	out(`• Notifications for permanently failed jobs: ${config.server.notifications ? "enabled" : "disabled"}`);
 
 	const lists = {
 		accounts: config.accounts,

@@ -24,18 +24,18 @@
 3. **Endgültigkeit:** im `failed`-Ereignis `job.attemptsMade >= (job.opts.attempts ?? 1)`. Dass `attemptsMade` im `failed`-Ereignis den fehlgeschlagenen Versuch bereits enthält, wird gegen echtes BullMQ geprüft (Task 3.2). Ein `failed`-Ereignis ohne Job (z. B. Stalled-Limit) zählt als endgültig, wenn kein Job vorliegt, und wird mit `queue` und Fehlermeldung gemeldet.
 4. **Neues Modul `src/notifier.ts`:** `createNotifier({ url, post, logger, now })` liefert `notifyFinalFailure(info)` und `sendTest()`. `post` ist die HTTP-Funktion (Standard `axios.post` mit `timeout: 5000`), `now`/Timer sind austauschbar, damit die Flutbegrenzung mit Fake-Timern testbar ist. Ohne URL liefert eine Fabrikfunktion `undefined`, `main.ts` übergibt dann keinen Callback.
 5. **Hook in `attachWorkerLogging`:** neuer optionaler sechster Parameter `onFinalFailure(info)`, aufgerufen im `failed`-Handler nach dem Logeintrag. Der Aufruf ist `void`: Fehler im Notifier werden darin abgefangen und dürfen nie in den Worker propagieren.
-6. **Nachrichtentext (Englisch, wie die übrigen Meldungen):**
+6. **Nachrichtentext (Englisch, wie die übrigen Meldungen) als Markdown-Aufzählung:** Hookshot rendert `text` als Markdown und stellt den Benutzernamen fett voran (`**paperfeed**: <text>`, am echten Hookshot an der Testnachricht festgestellt). Deshalb beginnt der Text nicht mit „paperfeed“ (sonst „paperfeed: paperfeed: …“), und einzelne Zeilenumbrüche würden in der Darstellung zu einer Zeile zusammenfallen. Das Format ist eine Titelzeile mit Aufzählung, in Klartext und gerendert lesbar:
    ```
-   paperfeed: job failed permanently
-   queue: process-changes
-   job: invoice.pdf processing
-   error: Paperless upload failed
-   attempts: 1/1
+   job failed permanently
+   - queue: `process-changes`
+   - job: `invoice.pdf processing`
+   - error: `Paperless upload failed`
+   - attempts: `1/1`
    ```
-   Job-Beschreibung ist das vorhandene `getLabel(job.data)`. Fehlermeldung auf 500 Zeichen gekürzt (`…` angehängt). Die Verbesserung der Labels (Account-Name statt ID bei `collect-changes`/`renew-channel`) ist nicht Teil dieser Change.
+   Werte stehen in Code-Spans, damit Dateinamen und Fehlermeldungen (Unterstriche, Sternchen) nicht als Markdown gedeutet werden; Zeilenumbrüche in Werten werden zu Leerzeichen, Backticks zu Apostrophen. Job-Beschreibung ist das vorhandene `getLabel(job.data)`. Fehlermeldung auf 500 Zeichen gekürzt (`… (truncated)`). Die Testnachricht von `notify-test` hat dasselbe Format mit Beispielwerten, damit man die Darstellung im Raum prüfen kann. Die Verbesserung der Labels (Account-Name statt ID bei `collect-changes`/`renew-channel`) ist nicht Teil dieser Change.
 7. **Flutbegrenzung je Queue:** Zustand `{ lastSentAt, suppressed }` pro Queue-Name. Der erste Fehlschlag sendet sofort und startet ein 60-Sekunden-Fenster. Weitere Fehlschläge im Fenster erhöhen `suppressed`. Am Ende des Fensters sendet ein einmaliger, `unref`-ter Timer eine Sammelnachricht (`N more jobs failed permanently`), falls `suppressed > 0`, und setzt den Zustand zurück. Beim Beenden des Prozesses gehen nicht mehr gesendete Sammelnachrichten verloren (bewusst akzeptiert, die Jobs stehen in Bull Board).
 8. **Fehlerbehandlung beim Senden:** Timeout 5 s, kein erneuter Versuch. Fehler werden als `warn` mit HTTP-Status oder Fehlercode und Meldung geloggt, nie mit `error.config`, `error.request` oder der URL. Der Notifier verändert weder Jobs noch Exit-Codes.
-9. **`notify-test`:** CLI-Kommando, nutzt dieselbe Fabrik, sendet „paperfeed: test notification“ und meldet den Status (Exit 0/1). Ohne konfigurierte URL Exit 1 mit Hinweis. Die Ausgabe enthält die URL nicht.
+9. **`notify-test`:** CLI-Kommando, nutzt dieselbe Fabrik, sendet eine Testnachricht im Format der echten Meldung und meldet den Status (Exit 0/1). Ohne konfigurierte URL Exit 1 mit Hinweis. Die Ausgabe enthält die URL nicht.
 10. **Sicherheit der URL:** Sie wird nicht geloggt, steht aber in der Umgebung des Containers (`docker inspect`). `validate-config` gibt sie nicht aus; es zeigt nur „notifications: enabled/disabled“.
 
 ## Risks / Trade-offs

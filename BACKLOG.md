@@ -6,12 +6,6 @@ Wird nicht im Backend umgesetzt. Bull Board läuft als **separater Container** (
 
 ---
 
-## Feature — Benachrichtigung bei finalem Job-Fehler
-
-**Status:** in Arbeit als OpenSpec-Change `notify-failed-jobs` (`openspec/changes/notify-failed-jobs/`). Statt der früheren Matrix-Client-API (Token, Raum-ID in der YAML) wird ein generischer Webhook (Matrix Hookshot, `SERVER_NOTIFICATIONS_WEBHOOK_URL`) aufgerufen. Der Eintrag entfällt mit dem Archivieren der Change.
-
----
-
 # 12-Factor
 
 Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines Punkts den Report aktualisieren (Status, Ist-Zustand, Gesamtergebnis).

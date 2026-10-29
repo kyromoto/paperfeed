@@ -115,12 +115,17 @@ pnpm run cli <command>                              # local development
 |---|---|
 | `validate-config [--online]` | Validates the config file and cross references. `--online` also checks Redis, the Drive source/destination folders and the Paperless login. |
 | `healthcheck` | Calls `GET /health` of the local app on the port from `server.http.port`. Used by the Docker `HEALTHCHECK`, exit code `0` when healthy. |
+| `notify-test` | Sends a test message to the notification webhook (`SERVER_NOTIFICATIONS_WEBHOOK_URL`) and reports the HTTP status if it fails. |
 | `migrate` | Runs the SQLite migrations in `{data_path}/db` without starting the app. |
 | `reset-token <account>` | Deletes the stored Drive change token. Changes made before the next collect are not tracked, run `requeue` afterwards. |
 | `reset-channel <account>` | Stops the persisted webhook channel at Google and deletes its state. A running app creates a new channel via the renewal poller. |
 | `requeue <account>` | Queues all files currently in the source folder for processing. Duplicates are prevented by the job deduplication id; the output tells them apart: `dev: 2 file(s) queued, 1 already queued`, or `dev: no files in the source folder`. |
 
 `<account>` is the `id` or `name` of an entry in `accounts`. Exit codes: `0` success, `1` error, `2` usage error.
+
+## Notifications
+
+Optional: set `SERVER_NOTIFICATIONS_WEBHOOK_URL` to a generic webhook (for example a Matrix Hookshot webhook) to get a message when a job has failed for good, with at most one message per queue per minute. Details and the check with `notify-test` are in [docs/configuration.md](docs/configuration.md#notifications).
 
 ## Queue monitoring (Bull Board)
 

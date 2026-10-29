@@ -34,6 +34,11 @@ export const Server = z.object({
 	drive_monitor: z.object({
 		webhook_url: z.string().url(),
 	}),
+	notifications: z
+		.object({
+			webhook_url: z.string().url(),
+		})
+		.optional(),
 });
 
 export type DriveAccount = z.infer<typeof DriveAccount>;

@@ -98,6 +98,34 @@ describe("composeConfig", () => {
 		expect(config.server.queue.renewPollIntervalSec).toBe(15);
 	});
 
+	it("leaves notifications off when the webhook variable is not set", () => {
+		expect(composeConfig(ACCOUNTS, REQUIRED_ENV).server.notifications).toBeUndefined();
+	});
+
+	it("reads the optional notification webhook url from the environment", () => {
+		const config = composeConfig(ACCOUNTS, {
+			...REQUIRED_ENV,
+			SERVER_NOTIFICATIONS_WEBHOOK_URL: "https://hookshot.example.com/webhook/abc",
+		});
+
+		expect(config.server.notifications).toEqual({ webhook_url: "https://hookshot.example.com/webhook/abc" });
+	});
+
+	it("treats an empty notification webhook variable as not set", () => {
+		const config = composeConfig(ACCOUNTS, { ...REQUIRED_ENV, SERVER_NOTIFICATIONS_WEBHOOK_URL: " " });
+
+		expect(config.server.notifications).toBeUndefined();
+	});
+
+	it("rejects an invalid notification url without echoing the value", () => {
+		const issues = issuesOf(() =>
+			composeConfig(ACCOUNTS, { ...REQUIRED_ENV, SERVER_NOTIFICATIONS_WEBHOOK_URL: "secret-token-not-a-url" }),
+		);
+
+		expect(issues).toEqual([expect.stringContaining("SERVER_NOTIFICATIONS_WEBHOOK_URL")]);
+		expect(issues.join("\n")).not.toContain("secret-token");
+	});
+
 	it("names every missing required variable", () => {
 		const issues = issuesOf(() => composeConfig(ACCOUNTS, {}));
 

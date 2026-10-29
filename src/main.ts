@@ -18,6 +18,7 @@ import { type CollectChangesJobPayload, type CollectChangesJobResult, FileProces
 import { FileStore } from "./file-store";
 import { getDriveClient } from "./lib";
 import { configureLogging, ROOT_LOGGER_KEY } from "./logging";
+import { createNotifier } from "./notifier";
 import {
 	makeCollectChangesQueueProcessor,
 	makeProcessChangesQueueProcessor,
@@ -90,6 +91,13 @@ async function main() {
 		concurrency: config.server.queue.concurrency.renew,
 	});
 
+	const notifier = createNotifier({
+		url: config.server.notifications?.webhook_url,
+		logger: logger.getChild("notifier"),
+	});
+	logger.info(`Notifications for permanently failed jobs: ${notifier ? "enabled" : "disabled"}`);
+	const onFinalFailure = notifier?.notifyFinalFailure;
+
 	attachWorkerLogging<CollectChangesJobPayload, CollectChangesJobResult>(
 		logger,
 		collectChangesWorker,
@@ -111,6 +119,7 @@ async function main() {
 				})),
 			);
 		},
+		onFinalFailure,
 	);
 
 	attachWorkerLogging(
@@ -118,6 +127,8 @@ async function main() {
 		processChangesWorker,
 		processChangesQueue,
 		(d) => `${d?.file.name ?? "unknown-file"} processing`,
+		undefined,
+		onFinalFailure,
 	);
 
 	attachWorkerLogging(
@@ -125,6 +136,8 @@ async function main() {
 		renewChannelWorker,
 		renewChannelQueue,
 		(d) => `${d?.accountId ?? "unknown-account"} channel renewal`,
+		undefined,
+		onFinalFailure,
 	);
 
 	logger.info("Initializing file processors ...");

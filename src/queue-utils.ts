@@ -53,12 +53,21 @@ export async function collectOutstandingJobs(
 	).flat();
 }
 
+export type FinalFailureInfo = {
+	queue: string;
+	label: string;
+	error: string;
+	attemptsMade?: number;
+	attempts: number;
+};
+
 export function attachWorkerLogging<T, R = unknown>(
 	logger: Logger,
 	worker: bullmq.Worker<T, R>,
 	queue: bullmq.Queue<T>,
 	getLabel: (data: T | undefined) => string,
 	onCompleted?: (job: bullmq.Job<T, R>, result: R) => void | Promise<void>,
+	onFinalFailure?: (info: FinalFailureInfo) => void,
 ): void {
 	// const queueEvents = new QueueEvents(queue.name);
 	worker.on("active", (job) => {
@@ -75,6 +84,30 @@ export function attachWorkerLogging<T, R = unknown>(
 		logger
 			.getChild([queue.name, job?.id ?? "unknown-id"])
 			.error(`${getLabel(job?.data)} failed: ${error.message}`, { job, error });
+
+		if (!onFinalFailure) {
+			return;
+		}
+
+		// without a job (e.g. stalled limit exceeded) there is nothing that could be retried
+		// BullMQ stores `attempts: 0` for jobs added without the option, which still means one attempt
+		const attempts = Math.max(job?.opts.attempts ?? 1, 1);
+
+		if (job && job.attemptsMade < attempts) {
+			return;
+		}
+
+		try {
+			onFinalFailure({
+				queue: queue.name,
+				label: getLabel(job?.data),
+				error: error.message,
+				attemptsMade: job?.attemptsMade,
+				attempts,
+			});
+		} catch (callbackError) {
+			logger.getChild(queue.name).warn("Failed to report a permanently failed job", { error: callbackError });
+		}
 	});
 	// queueEvents.on("deduplicated", ({ jobId, deduplicationId, deduplicatedJobId }, id) => {
 	// 	logger.getChild([queue.name, jobId ?? "unknown-id"])

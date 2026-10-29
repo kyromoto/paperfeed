@@ -1,6 +1,14 @@
+import type { Logger } from "@logtape/logtape";
+import type { Job, Queue, Worker } from "bullmq";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { DriveFile, FileProcessor } from "./file-processor";
-import { collectOutstandingJobs, enqueueJobs, type ProcessFileBulkJob } from "./queue-utils";
+import {
+	attachWorkerLogging,
+	collectOutstandingJobs,
+	enqueueJobs,
+	type FinalFailureInfo,
+	type ProcessFileBulkJob,
+} from "./queue-utils";
 
 const file = (id: string): DriveFile => ({ id, name: `${id}.pdf`, mimeType: "application/pdf" });
 
@@ -160,5 +168,94 @@ describe("collectOutstandingJobs", () => {
 		const jobs = await collectOutstandingJobs(new Map([["acc", processorWith([])]]), "process-changes");
 
 		expect(jobs).toEqual([]);
+	});
+});
+
+describe("attachWorkerLogging final failures", () => {
+	const setup = (onFinalFailure?: (info: FinalFailureInfo) => void) => {
+		const handlers: Record<string, (...args: unknown[]) => void> = {};
+		const worker = { on: (event: string, handler: (...args: unknown[]) => void) => void (handlers[event] = handler) };
+		const queue = { name: "process-changes", on: vi.fn() };
+		const child = { info: vi.fn(), error: vi.fn(), warn: vi.fn() };
+		const logger = { getChild: () => child };
+
+		attachWorkerLogging(
+			logger as unknown as Logger,
+			worker as unknown as Worker,
+			queue as unknown as Queue,
+			(data) => `${(data as { name?: string } | undefined)?.name ?? "unknown"} processing`,
+			undefined,
+			onFinalFailure,
+		);
+
+		const fail = (job: Partial<Job> | undefined, message = "boom") => handlers.failed(job, new Error(message));
+		return { fail, child };
+	};
+
+	const jobWith = (attempts: number | undefined, attemptsMade: number) =>
+		({ id: "1", data: { name: "invoice.pdf" }, opts: { attempts }, attemptsMade }) as unknown as Job;
+
+	it("reports a job without configured attempts after its only attempt", () => {
+		const onFinalFailure = vi.fn();
+		const { fail } = setup(onFinalFailure);
+
+		fail(jobWith(undefined, 1));
+
+		expect(onFinalFailure).toHaveBeenCalledWith({
+			queue: "process-changes",
+			label: "invoice.pdf processing",
+			error: "boom",
+			attemptsMade: 1,
+			attempts: 1,
+		});
+	});
+
+	it("treats the attempts: 0 that BullMQ stores for jobs without the option as one attempt", () => {
+		const onFinalFailure = vi.fn();
+		const { fail } = setup(onFinalFailure);
+
+		fail(jobWith(0, 1));
+
+		expect(onFinalFailure).toHaveBeenCalledWith(expect.objectContaining({ attemptsMade: 1, attempts: 1 }));
+	});
+
+	it.each([
+		[1, false],
+		[2, false],
+		[3, true],
+	])("with 3 attempts the failure after attempt %i is final: %s", (attemptsMade, final) => {
+		const onFinalFailure = vi.fn();
+		const { fail } = setup(onFinalFailure);
+
+		fail(jobWith(3, attemptsMade));
+
+		expect(onFinalFailure).toHaveBeenCalledTimes(final ? 1 : 0);
+	});
+
+	it("reports a failure without a job (for example stalled too often) as final", () => {
+		const onFinalFailure = vi.fn();
+		const { fail } = setup(onFinalFailure);
+
+		fail(undefined, "job stalled more than allowable limit");
+
+		expect(onFinalFailure).toHaveBeenCalledWith(
+			expect.objectContaining({ error: "job stalled more than allowable limit", attempts: 1 }),
+		);
+	});
+
+	it("keeps logging and does nothing else when no callback is given", () => {
+		const { fail, child } = setup();
+
+		expect(() => fail(jobWith(1, 1))).not.toThrow();
+		expect(child.error).toHaveBeenCalledTimes(1);
+	});
+
+	it("catches an error thrown by the callback so the worker is not affected", () => {
+		const { fail, child } = setup(() => {
+			throw new Error("notifier exploded");
+		});
+
+		expect(() => fail(jobWith(1, 1))).not.toThrow();
+		expect(child.warn).toHaveBeenCalledTimes(1);
 	});
 });

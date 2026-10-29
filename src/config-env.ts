@@ -24,6 +24,7 @@ export const SERVER_VARIABLES: ServerVariable[] = [
 	},
 	{ name: "SERVER_QUEUE_RENEW_POLL_INTERVAL_SEC", path: ["queue", "renewPollIntervalSec"], type: "number" },
 	{ name: "SERVER_DRIVE_MONITOR_WEBHOOK_URL", path: ["drive_monitor", "webhook_url"], type: "string", required: true },
+	{ name: "SERVER_NOTIFICATIONS_WEBHOOK_URL", path: ["notifications", "webhook_url"], type: "string" },
 ];
 
 /** Problems with the composed configuration. Messages name variables and key paths, never values. */

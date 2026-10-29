@@ -49,7 +49,7 @@ Das System SHALL den Konfigurationsabschnitt `server` ausschließlich aus Umgebu
 
 #### Scenario: Variablenliste
 - **WHEN** die Konfiguration gebildet wird
-- **THEN** werden diese Variablen ausgewertet: `SERVER_DATA_PATH`, `SERVER_HTTP_PORT`, `SERVER_QUEUE_REDIS_URL`, `SERVER_QUEUE_REDIS_PREFIX`, `SERVER_QUEUE_CONCURRENCY_COLLECT`, `SERVER_QUEUE_CONCURRENCY_PROCESS`, `SERVER_QUEUE_CONCURRENCY_RENEW`, `SERVER_QUEUE_DEBOUNCE_COLLECT_CHANGES_SEC`, `SERVER_QUEUE_RENEW_POLL_INTERVAL_SEC` und `SERVER_DRIVE_MONITOR_WEBHOOK_URL`, davon sind `SERVER_DATA_PATH`, `SERVER_QUEUE_REDIS_URL` und `SERVER_DRIVE_MONITOR_WEBHOOK_URL` Pflicht
+- **THEN** werden diese Variablen ausgewertet: `SERVER_DATA_PATH`, `SERVER_HTTP_PORT`, `SERVER_QUEUE_REDIS_URL`, `SERVER_QUEUE_REDIS_PREFIX`, `SERVER_QUEUE_CONCURRENCY_COLLECT`, `SERVER_QUEUE_CONCURRENCY_PROCESS`, `SERVER_QUEUE_CONCURRENCY_RENEW`, `SERVER_QUEUE_DEBOUNCE_COLLECT_CHANGES_SEC`, `SERVER_QUEUE_RENEW_POLL_INTERVAL_SEC`, `SERVER_DRIVE_MONITOR_WEBHOOK_URL` und `SERVER_NOTIFICATIONS_WEBHOOK_URL`, davon sind `SERVER_DATA_PATH`, `SERVER_QUEUE_REDIS_URL` und `SERVER_DRIVE_MONITOR_WEBHOOK_URL` Pflicht
 
 #### Scenario: Vollständige Server-Konfiguration
 - **WHEN** die drei Pflichtvariablen gesetzt sind und `SERVER_HTTP_PORT=8080`
@@ -66,6 +66,14 @@ Das System SHALL den Konfigurationsabschnitt `server` ausschließlich aus Umgebu
 #### Scenario: Leerer Wert
 - **WHEN** eine Variable leer gesetzt ist
 - **THEN** gilt sie als nicht gesetzt
+
+#### Scenario: Optionaler Benachrichtigungs-Webhook
+- **WHEN** `SERVER_NOTIFICATIONS_WEBHOOK_URL` nicht gesetzt ist
+- **THEN** ist die Konfiguration gültig und Benachrichtigungen sind ausgeschaltet
+
+#### Scenario: Ungültige Benachrichtigungs-URL
+- **WHEN** `SERVER_NOTIFICATIONS_WEBHOOK_URL` keine gültige URL ist
+- **THEN** wird die Konfiguration mit einer Meldung abgelehnt, die die Variable nennt und den Wert nicht enthält
 
 ### Requirement: Alten server-Block ablehnen
 Das System SHALL die Konfiguration ablehnen, wenn die YAML einen Abschnitt `server` enthält, und die Meldung SHALL die stattdessen zu setzenden Variablennamen nennen, aber keine Werte.

@@ -37,8 +37,21 @@ The variable name is the key path in upper case, joined with `_` (`camelCase` be
 | `SERVER_QUEUE_DEBOUNCE_COLLECT_CHANGES_SEC` | `server.queue.debounce.collectChangesSec` | number 0–300 | no | `5` | Wait time that merges bursts of Drive notifications into one change collection |
 | `SERVER_QUEUE_RENEW_POLL_INTERVAL_SEC` | `server.queue.renewPollIntervalSec` | number ≥ 5 | no | `15` | How often channel expiry is checked. Keep it below 30 s (renewal happens 30 s before expiry) |
 | `SERVER_DRIVE_MONITOR_WEBHOOK_URL` | `server.drive_monitor.webhook_url` | URL | **yes** | – | Public HTTPS base URL that Google calls (`<url>/webhook`) |
+| `SERVER_NOTIFICATIONS_WEBHOOK_URL` | `server.notifications.webhook_url` | URL | no | – (off) | Generic webhook (e.g. Matrix Hookshot) that receives a message when a job has failed for good. The URL is a secret, see [Notifications](#notifications) |
 
 A `server:` block in the YAML is **not accepted any more**: the app refuses to start and lists the variable to set for each key.
+
+## Notifications
+
+Set `SERVER_NOTIFICATIONS_WEBHOOK_URL` to get a message when a job has used up all its attempts (a file that could not be processed, a webhook channel that could not be renewed). Without it nothing is sent.
+
+- **Matrix Hookshot:** in the room, run `!hookshot webhook paperfeed`; Hookshot answers with the webhook URL. Use one webhook per application. The room may be unencrypted or not, Hookshot delivers the message.
+- **What is sent:** `POST` with JSON `{ "username": "paperfeed", "text": "…" }`. The text names the queue, the job (for example the file name), the error message (cut at 500 characters) and the attempts, never credentials or file contents.
+- **Only final failures:** a failed attempt that BullMQ retries (only `renew-channel` retries, 3 attempts) is not reported. `collect-changes` and `process-changes` have one attempt, so every failure there is final.
+- **Flood control:** per queue at most one message per 60 seconds. The first failure is sent right away, further ones are counted and reported together (`4 more jobs failed permanently`) when the window ends. Messages that are still pending when the app stops are dropped, the jobs stay visible in Bull Board.
+- **Best effort:** the call has a 5 second timeout and is never retried. If the webhook is down only a warning is logged (without the URL), no job is affected.
+- **Check it:** `node build/cli.js notify-test` sends a test message and reports the HTTP status on failure.
+- **Secret:** the URL is a secret and is visible with `docker inspect`, like the other `SERVER_*` variables. It never appears in logs or in command output.
 
 ## YAML file
 
