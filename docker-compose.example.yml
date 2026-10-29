@@ -32,13 +32,13 @@ services:
       - ./data:/data
 
   bull-board:
-    image: deadly0/bull-board:latest
+    image: venatum/bull-board:latest
     ports:
       - "3001:3000"
     environment:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
-      # must match server.queue.redis.prefix in config.yml (defaults to paperless-gdrive-link)
+      # must match SERVER_QUEUE_REDIS_PREFIX (defaults to paperless-gdrive-link)
       BULL_PREFIX: paperless-gdrive-link
     depends_on:
       redis:

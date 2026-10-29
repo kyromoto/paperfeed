@@ -2,7 +2,7 @@
 
 ## Entfallen — Admin Web UI (Bull Board)
 
-Wird nicht im Backend umgesetzt. Bull Board läuft als **separater Container** (`deadly0/bull-board`, siehe `docker-compose.example.yml`) und bleibt im internen Docker-Netz. Gründe: keine unauthentifizierte Admin-UI auf dem öffentlich erreichbaren Webhook-Port, keine zusätzlichen Abhängigkeiten in der App, unabhängige Updates. Der Queue-Prefix (`server.queue.redis.prefix`, Default `paperless-gdrive-link`) muss `BULL_PREFIX` des Containers entsprechen; `renew-channel` ist dort neben `collect-changes` und `process-changes` sichtbar. Hinweise für den Betrieb stehen im README.
+Wird nicht im Backend umgesetzt. Bull Board läuft als **separater Container** (`venatum/bull-board`, siehe `docker-compose.example.yml`) und bleibt im internen Docker-Netz. Gründe: keine unauthentifizierte Admin-UI auf dem öffentlich erreichbaren Webhook-Port, keine zusätzlichen Abhängigkeiten in der App, unabhängige Updates. Der Queue-Prefix (`SERVER_QUEUE_REDIS_PREFIX`, Default `paperless-gdrive-link`) muss `BULL_PREFIX` des Containers entsprechen; `renew-channel` ist dort neben `collect-changes` und `process-changes` sichtbar. Hinweise für den Betrieb stehen im README.
 
 ---
 
