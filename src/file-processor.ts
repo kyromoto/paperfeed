@@ -4,6 +4,7 @@ import FormData from "form-data";
 import type { drive_v3 } from "googleapis";
 
 import type { ChangeTokenRepository } from "./change-token-repository";
+import { describeApiError } from "./drive-monitor";
 import type { FileStore } from "./file-store";
 import { listChangesRecursive, listFilesRecursive } from "./lib";
 import type { Account, Config } from "./types";
@@ -90,15 +91,39 @@ export class FileProcessor {
 	public async downloadFileFromDrive(file: DriveFile) {
 		this.logger.info(`Downloading file ${file.name} from GDrive ...`, { file });
 
-		const res = await this.driveClient.files.get(
-			{
-				fileId: file.id,
-				alt: "media",
-			},
-			{ responseType: "stream" },
-		);
+		const res = await this.driveClient.files
+			.get(
+				{
+					fileId: file.id,
+					alt: "media",
+				},
+				{ responseType: "stream" },
+			)
+			.catch(async (error: unknown) => {
+				throw await this.explainDownloadError(file, error);
+			});
 
 		await this.fileStore.upload(this.getFileStoreName(file), res.data);
+	}
+
+	/**
+	 * With `responseType: "stream"` the Google client cannot read the body of an error response and throws a TypeError
+	 * without a status instead ("Cannot read properties of undefined (reading 'Symbol(Symbol.asyncIterator)')"). The same
+	 * request without a stream gets the real error (for example 404 "File not found: <id>."), so it is asked for the
+	 * reason. Errors that already carry a status are passed on unchanged.
+	 */
+	private async explainDownloadError(file: DriveFile, error: unknown): Promise<unknown> {
+		if (describeApiError(error).status !== undefined) {
+			return error;
+		}
+
+		try {
+			await this.driveClient.files.get({ fileId: file.id, fields: "id" });
+		} catch (reason) {
+			return reason;
+		}
+
+		return new Error(`Failed to download ${file.name} (${file.id}) from Drive: the error response could not be read`);
 	}
 
 	public async uploadFileToPaperless(file: DriveFile) {
