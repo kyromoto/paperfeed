@@ -6,7 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```bash
 npm run dev        # run with tsx watch (hot-reload), reads .env automatically
-npm run build      # compile TypeScript to ./build/
+npm run build      # compile TypeScript to ./build/ (tsconfig.build.json, excludes tests)
+npm test           # run all tests once (vitest, src/**/*.test.ts)
+npm run test:watch # tests in watch mode
 
 npx biome check          # lint + format check
 npx biome lint           # lint only
@@ -14,7 +16,7 @@ npx biome format         # show format diff (read-only)
 npx biome format --write # apply formatting
 ```
 
-There is no test suite.
+Tests (Vitest) live next to the code as `src/<module>.test.ts`. They are excluded from `npm run build` and the Docker image, but `npx tsc --noEmit` type-checks them. They must run offline (no Redis, Docker, Google, Paperless); use in-memory SQLite (`new Database(":memory:")` + `migrate(db)`) or fakes. New pure logic and fixes for specified behavior come with a test; CI runs `npm test` before the release.
 
 Required env vars (put in `.env` for dev):
 - `CONFIG_PATH` — path to YAML config file (e.g. `config/config.yml`)

@@ -131,6 +131,16 @@ services:
     image: redis:7-alpine
 ```
 
+## Development
+
+```bash
+npm test            # run all tests once (Vitest, src/**/*.test.ts)
+npm run test:watch  # watch mode
+npx biome check     # lint and format check
+```
+
+Tests live next to the code (`src/<module>.test.ts`) and need no external services.
+
 ## Admin CLI
 
 One-off maintenance commands ship in the same image and use the same `CONFIG_PATH` and environment as the app. They can run next to a running app (SQLite uses WAL).

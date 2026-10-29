@@ -30,6 +30,9 @@ jobs:
       - name: Lint and format check
         run: npx biome ci src
 
+      - name: Run tests
+        run: npm test
+
       - name: Run semantic-release
         run: npx semantic-release
         env:
