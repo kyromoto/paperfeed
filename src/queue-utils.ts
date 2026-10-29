@@ -1,7 +1,6 @@
 import type { Logger } from "@logtape/logtape";
 import type * as bullmq from "bullmq";
 import type { FileProcessor, ProcessChangesJobPayload } from "./file-processor";
-import { QueueEvents } from "bullmq";
 
 export type ProcessFileBulkJob = {
 	name: string;
@@ -23,8 +22,8 @@ export async function collectOutstandingJobs(
 					data: { accountId, file },
 					opts: {
 						jobId: `process-changes-${accountId}-${file.id}-${dateStr}`,
-						deduplication: { id: `process-changes-${accountId}-${file.id}` }
-					}
+						deduplication: { id: `process-changes-${accountId}-${file.id}` },
+					},
 				}));
 			}),
 		)

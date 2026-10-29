@@ -1,5 +1,3 @@
-import "dotenv/config";
-
 import fs from "node:fs/promises";
 import type http from "node:http";
 import path from "node:path";
@@ -29,15 +27,23 @@ import {
 } from "./file-processor";
 import { FileStore } from "./file-store";
 import { getDriveClient } from "./lib";
-import { makeCollectChangesQueueProcessor, makeProcessChangesQueueProcessor, makeRenewChannelQueueProcessor } from "./queue-processor";
+import {
+	makeCollectChangesQueueProcessor,
+	makeProcessChangesQueueProcessor,
+	makeRenewChannelQueueProcessor,
+} from "./queue-processor";
 import { attachWorkerLogging, collectOutstandingJobs } from "./queue-utils";
 
 const ROOT_LOGGER_KEY = "app";
 
+// JSON lines in production (one record per line for log shippers), human readable otherwise
+const consoleFormatter: logtape.ConsoleFormatter =
+	env.NODE_ENV === "production"
+		? (record) => [logtape.jsonLinesFormatter(record).trimEnd()]
+		: logtape.defaultConsoleFormatter;
+
 (async () => {
 	const startTime = Date.now();
-
-	console.info(`App version: ${process.env.npm_package_version}`);
 
 	addExitCallback(async (signal) => {
 		logger.info(`Shutting down... | Signal: ${signal}`, { signal });
@@ -80,7 +86,7 @@ const ROOT_LOGGER_KEY = "app";
 		sinks: {
 			console: redactByField(
 				logtape.getConsoleSink({
-					formatter: redactByPattern(logtape.defaultConsoleFormatter, [JWT_PATTERN]),
+					formatter: redactByPattern(consoleFormatter, [JWT_PATTERN]),
 				}),
 				[...DEFAULT_REDACT_FIELDS, "private_key"],
 			),
@@ -101,12 +107,11 @@ const ROOT_LOGGER_KEY = "app";
 
 	const logger = logtape.getLogger(ROOT_LOGGER_KEY);
 
-	logger.info("Loading env ...");
-	logger.info(Object.entries(env).reduce((obj, [key, value]) => Object.assign(obj, { [key]: value }), {}));
+	logger.info(`App version: ${process.env.npm_package_version}`);
+	logger.info(`Environment: ${env.NODE_ENV} | Log level: ${env.LOG_LEVEL}`);
 
-	logger.info("Loading config ...");
+	logger.info(`Loading config from ${env.CONFIG_PATH} ...`);
 	const config = await new ConfigFileRepository(logger.getChild("config-repository"), env.CONFIG_PATH).read();
-	logger.debug(config);
 
 	logger.info("Check data path exists ...");
 	await fs.access(config.server.data_path).catch(async () => {
@@ -139,7 +144,7 @@ const ROOT_LOGGER_KEY = "app";
 	logger.info("Initializing queues ...");
 	const queueOptions: bullmq.QueueOptions = {
 		connection: redisConnection,
-		prefix: config.server.queue.redis.prefix
+		prefix: config.server.queue.redis.prefix,
 	};
 
 	const workerOptions: bullmq.WorkerOptions = {
@@ -149,37 +154,28 @@ const ROOT_LOGGER_KEY = "app";
 		removeOnFail: { count: 10 },
 	};
 
-	const collectChangesQueue = new bullmq.Queue<CollectChangesJobPayload, CollectChangesJobResult>(
-		"collect-changes",
-		{
-			...queueOptions,
-			defaultJobOptions: {
-				removeOnComplete: { age: 60 * 60 * 24 * 7 }, // 1 Week
-			}
+	const collectChangesQueue = new bullmq.Queue<CollectChangesJobPayload, CollectChangesJobResult>("collect-changes", {
+		...queueOptions,
+		defaultJobOptions: {
+			removeOnComplete: { age: 60 * 60 * 24 * 7 }, // 1 Week
 		},
-	);
+	});
 
-	const processChangesQueue = new bullmq.Queue<ProcessChangesJobPayload, ProcessChangesJobResult>(
-		"process-changes",
-		{
-			...queueOptions,
-			defaultJobOptions: {
-				removeOnComplete: { age: 60 * 60 * 24 * 7 }, // 1 Week
-			}
+	const processChangesQueue = new bullmq.Queue<ProcessChangesJobPayload, ProcessChangesJobResult>("process-changes", {
+		...queueOptions,
+		defaultJobOptions: {
+			removeOnComplete: { age: 60 * 60 * 24 * 7 }, // 1 Week
 		},
-	);
+	});
 
-	const renewChannelQueue = new bullmq.Queue<RenewChannelJobPayload>(
-		"renew-channel",
-		{
-			...queueOptions,
-			defaultJobOptions: {
-				removeOnComplete: { age: 60 * 60 * 24 }, // 1 Day
-				attempts: 3,
-				backoff: { type: "exponential", delay: 5_000 },
-			}
+	const renewChannelQueue = new bullmq.Queue<RenewChannelJobPayload>("renew-channel", {
+		...queueOptions,
+		defaultJobOptions: {
+			removeOnComplete: { age: 60 * 60 * 24 }, // 1 Day
+			attempts: 3,
+			backoff: { type: "exponential", delay: 5_000 },
 		},
-	);
+	});
 
 	const collectChangesWorker = new bullmq.Worker(
 		collectChangesQueue.name,
@@ -193,11 +189,10 @@ const ROOT_LOGGER_KEY = "app";
 		{ ...workerOptions, concurrency: config.server.queue.concurrency.process },
 	);
 
-	const renewChannelWorker = new bullmq.Worker(
-		renewChannelQueue.name,
-		makeRenewChannelQueueProcessor(monitors),
-		{ ...workerOptions, concurrency: config.server.queue.concurrency.renew },
-	);
+	const renewChannelWorker = new bullmq.Worker(renewChannelQueue.name, makeRenewChannelQueueProcessor(monitors), {
+		...workerOptions,
+		concurrency: config.server.queue.concurrency.renew,
+	});
 
 	attachWorkerLogging<CollectChangesJobPayload, CollectChangesJobResult>(
 		logger,

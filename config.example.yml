@@ -1,0 +1,50 @@
+server:
+  data_path: data
+  http:
+    port: 3000
+  queue:
+    redis:
+      url: redis://localhost:6379
+    debounce:
+      collectChangesSec: 15
+  drive_monitor:
+    # publicly reachable HTTPS URL (e.g. the ngrok URL from docker-compose)
+    webhook_url: https://your-public-url.example.com
+
+accounts:
+  - id: 00000000-0000-4000-8000-000000000001
+    name: dev
+    props:
+      paperless_endpoint_id: 00000000-0000-4000-8000-000000000002
+      drive_account_id: 00000000-0000-4000-8000-000000000003
+      drive_src_folder_id: <Google Drive folder ID>
+      drive_dst_folder_id: <Google Drive folder ID>
+
+drive_accounts:
+  - id: 00000000-0000-4000-8000-000000000003
+    name: my-drive-account
+    props:
+      channel_expiration_sec: 1800
+      credentials:
+        type: service_account
+        project_id: your-project
+        private_key_id: <private key id>
+        private_key: |
+          -----BEGIN PRIVATE KEY-----
+          ...
+          -----END PRIVATE KEY-----
+        client_email: name@your-project.iam.gserviceaccount.com
+        client_id: "<client id>"
+        auth_uri: https://accounts.google.com/o/oauth2/auth
+        token_uri: https://oauth2.googleapis.com/token
+        auth_provider_x509_cert_url: https://www.googleapis.com/oauth2/v1/certs
+        universe_domain: googleapis.com
+
+paperless_endpoints:
+  - id: 00000000-0000-4000-8000-000000000002
+    name: my-paperless
+    props:
+      server_url: http://localhost:8010
+      credentials:
+        username: admin
+        password: admin

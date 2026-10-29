@@ -7,17 +7,11 @@ import type { ChangeTokenRepository } from "./change-token-repository";
 import type { FileProcessor } from "./file-processor";
 import type { Account, Config, DriveAccount } from "./types";
 
-export const listFilesRecursive = async (
-	account: Account,
-	drive: drive_v3.Drive,
-) => {
-	const fn = async (
-		pageToken?: string,
-	): Promise<Array<drive_v3.Schema$File>> => {
+export const listFilesRecursive = async (account: Account, drive: drive_v3.Drive) => {
+	const fn = async (pageToken?: string): Promise<Array<drive_v3.Schema$File>> => {
 		const res = await drive.files.list({
 			q: `'${account.props.drive_src_folder_id}' in parents and trashed = false and mimeType != 'application/vnd.google-apps.folder'`,
-			fields:
-				"nextPageToken, files(id, name, size, properties, mimeType, createdTime, modifiedTime)",
+			fields: "nextPageToken, files(id, name, size, properties, mimeType, createdTime, modifiedTime)",
 			orderBy: "modifiedTime desc",
 			pageSize: 100,
 			...(pageToken && { pageToken }),
@@ -111,26 +105,6 @@ const readLegacyChangeToken = async (config: Config, account: Account): Promise<
 	return raw?.trim() || undefined;
 };
 
-export const stopChannels = async (
-	channelIds: string[],
-	drive: drive_v3.Drive,
-) => {
-	for (const channelId of channelIds) {
-		await drive.channels
-			.stop({
-				requestBody: {
-					id: channelId,
-				},
-			})
-			.catch((err) => {
-				console.error(
-					`Failed to stop channel with id ${channelId}: ${err.message}`,
-					{ error: err },
-				);
-			});
-	}
-};
-
 export const getDriveClient = (drive: DriveAccount) => {
 	return google.drive({
 		version: "v3",
@@ -142,8 +116,7 @@ export const getDriveClient = (drive: DriveAccount) => {
 	});
 };
 
-export const createNotificationTask =
-	(logger: Logger, processor: FileProcessor) => async () => {
-		logger.info(`Getting unprocessed files...`);
-		return await processor.getUnprocessedFiles("changes");
-	};
+export const createNotificationTask = (logger: Logger, processor: FileProcessor) => async () => {
+	logger.info(`Getting unprocessed files...`);
+	return await processor.getUnprocessedFiles("changes");
+};

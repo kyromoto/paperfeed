@@ -61,20 +61,6 @@ Der Callback (Zeile 43) referenziert `logger`, `server`, `redisConnection`, `db`
 
 Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines Punkts den Report aktualisieren (Status, Ist-Zustand, Gesamtergebnis).
 
-## Chore — Quick Wins (12-Factor II, V, X, XI)
-
-**Eingriff:** Gering. Siehe `12-FACTOR-REPORT.md`, Faktoren II, V, X, XI.
-
-**Umsetzung:**
-- `Dockerfile`: `npm ci --only=production` → `npm ci --omit=dev`, `HEALTHCHECK` auf `/health` ergänzen
-- `dotenv` aus `dependencies` entfernen und den `import "dotenv/config"` in `src/main.ts` streichen (`npm run dev` nutzt bereits `tsx --env-file`)
-- CI (`.github/workflows/build-and-push.yml`): `npx biome check` vor dem Release-Schritt
-- `console.error` in `src/lib.ts` und `console.info` in `src/main.ts` durch den Logger ersetzen; Env und komplette Config nicht mehr loggen
-- JSON-Log-Formatter, wenn `NODE_ENV=production`
-- `docker-compose.example.yml` und `config.example.yml` (ohne Secrets) einchecken, `.gitignore` anpassen
-
----
-
 ## Security — Webhook-Token verifizieren
 
 **Eingriff:** Gering. Siehe `12-FACTOR-REPORT.md`, Weitere Befunde.

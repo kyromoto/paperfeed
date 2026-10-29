@@ -7,3 +7,5 @@ config*.json
 config*.yml
 config*.yaml
 docker-compose*
+!config.example.yml
+!docker-compose.example.yml
