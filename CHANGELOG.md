@@ -1,3 +1,10 @@
+## [1.10.1](https://github.com/kyromoto/paperfeed/compare/v1.10.0...v1.10.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* remove stale channel state on stop and quiet the restart warning ([ea6149d](https://github.com/kyromoto/paperfeed/commit/ea6149de7d7775d01021338cca014caed68ca457))
+
 # [1.10.0](https://github.com/kyromoto/paperfeed/compare/v1.9.1...v1.10.0) (2026-10-29)
 
 
