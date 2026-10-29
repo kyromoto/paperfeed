@@ -1,3 +1,10 @@
+## [1.8.2](https://github.com/kyromoto/paperfeed/compare/v1.8.1...v1.8.2) (2026-10-29)
+
+
+### Bug Fixes
+
+* bump Node.js to 22.23.4 for security fixes ([bbf510a](https://github.com/kyromoto/paperfeed/commit/bbf510a2930aa8204668a3c829e638b4e8b9c2cb))
+
 ## [1.8.1](https://github.com/kyromoto/paperfeed/compare/v1.8.0...v1.8.1) (2026-07-21)
 
 
