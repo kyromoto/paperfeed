@@ -58,6 +58,7 @@ Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines P
 - `src/env.ts`: optionale Variablen `PORT`, `REDIS_URL`, `REDIS_PREFIX`, `DATA_PATH`, `WEBHOOK_URL` sowie Secrets (Drive-Credentials, Paperless-Zugang)
 - `src/config-repository.ts`: Env-Werte überschreiben YAML-Werte vor der Zod-Validierung (abwärtskompatibel)
 - `src/types.ts`: betroffene `server.*`-Felder optional machen, Validierung nach dem Merge
+- `Dockerfile`: `HEALTHCHECK` nutzt aktuell fest Port 3000, Port aus `PORT` übernehmen
 - README und `config.example.yml` anpassen
 
 ---
@@ -78,7 +79,7 @@ Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines P
 
 **Umsetzung:** `src/main.ts` nach Rolle aufteilen (Env `PROCESS_TYPE` oder Start-Argument). Scheduler als BullMQ-Repeatable-Job statt `setInterval`. FileStore-Pfade pro Job eindeutig machen, damit `process`-Concurrency > 1 möglich wird.
 
-**Hinweis:** Setzt für echtes Scale-out den Stateless-Punkt voraus.
+**Hinweis:** Setzt für echtes Scale-out den Stateless-Punkt voraus. `setupShutdownHandler` (`src/shutdown.ts`) muss dann pro Prozesstyp nur die jeweils laufenden Ressourcen schließen.
 
 ---
 
@@ -88,4 +89,4 @@ Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines P
 
 **Nur umsetzen, wenn horizontale Skalierung nötig wird.** Single-Instance mit persistentem Volume ist vertretbar.
 
-**Umsetzung:** `ChangeTokenRepository` und `ChannelRepository` auf Redis umstellen (Interface bleibt), `src/db.ts` und SQLite entfernen, Datenmigration aus Bestands-SQLite. `FileStore` durch Streaming Drive → Paperless ersetzen oder geteilten Storage nutzen. Webhook-Zuordnung `channelId → account` aus dem geteilten Store statt aus In-Memory-Maps.
+**Umsetzung:** `ChangeTokenRepository` und `ChannelRepository` auf Redis umstellen (Interface bleibt), `src/db.ts` und SQLite entfernen, Datenmigration aus Bestands-SQLite. `FileStore` durch Streaming Drive → Paperless ersetzen oder geteilten Storage nutzen. Webhook-Zuordnung `channelId → account` und das Channel-Token (`X-Goog-Channel-Token`, aktuell nur in `DriveMonitor` im Speicher) aus dem geteilten Store statt aus In-Memory-Maps.
