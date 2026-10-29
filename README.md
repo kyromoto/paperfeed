@@ -131,6 +131,26 @@ services:
     image: redis:7-alpine
 ```
 
+## Admin CLI
+
+One-off maintenance commands ship in the same image and use the same `CONFIG_PATH` and environment as the app. They can run next to a running app (SQLite uses WAL).
+
+```bash
+node build/cli.js <command>                         # in the container
+docker exec <container> node build/cli.js <command> # against a running container
+npm run cli -- <command>                            # local development
+```
+
+| Command | Description |
+|---|---|
+| `validate-config [--online]` | Validates the config file and cross references. `--online` also checks Redis, the Drive source/destination folders and the Paperless login. |
+| `migrate` | Runs the SQLite migrations in `{data_path}/db` without starting the app. |
+| `reset-token <account>` | Deletes the stored Drive change token. Changes made before the next collect are not tracked, run `requeue` afterwards. |
+| `reset-channel <account>` | Stops the persisted webhook channel at Google and deletes its state. A running app creates a new channel via the renewal poller. |
+| `requeue <account>` | Queues all files currently in the source folder for processing (duplicates are prevented by the job deduplication id). |
+
+`<account>` is the `id` or `name` of an entry in `accounts`. Exit codes: `0` success, `1` error, `2` usage error.
+
 ## Endpoints
 
 | Method | Path | Description |

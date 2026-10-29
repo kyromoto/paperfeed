@@ -2,7 +2,7 @@
 
 Bewertung von paperfeed gegen die zwölf Faktoren von [12factor.net](https://12factor.net).
 
-- **Stand:** v1.8.2 + Quick Wins + Shutdown + Weitere Befunde, 2026-10-29
+- **Stand:** v1.8.2 + Quick Wins + Shutdown + Weitere Befunde + Admin-CLI, 2026-10-29
 - **Pflege:** Bei Änderungen an Konfiguration, Zustandshaltung, Prozessmodell, Shutdown, Logging oder Docker/CI sowie bei Umsetzung eines verlinkten Backlog-Punkts Status, Ist-Zustand und Gesamtergebnis hier aktualisieren (siehe `CLAUDE.md`).
 - **Offene Aufgaben:** [`BACKLOG.md`](BACKLOG.md), Abschnitt „12-Factor“.
 
@@ -10,7 +10,7 @@ Bewertung von paperfeed gegen die zwölf Faktoren von [12factor.net](https://12f
 
 ## Gesamtergebnis
 
-7 ✅ konform, 2 ⚠️ teilweise (IV, VIII), 3 ❌ nicht konform (III, VI, XII).
+8 ✅ konform, 2 ⚠️ teilweise (IV, VIII), 2 ❌ nicht konform (III, VI).
 
 ## Tabelle
 
@@ -27,7 +27,7 @@ Bewertung von paperfeed gegen die zwölf Faktoren von [12factor.net](https://12f
 | IX | Disposability | ✅ | Schneller Start. `src/shutdown.ts` (`setupShutdownHandler`) fährt bei SIGINT/SIGTERM/SIGHUP und uncaughtException sequentiell herunter: HTTP-Server → Scheduler → Worker (`worker.close()` wartet auf aktive Jobs) → Monitors (`channels.stop`) → Queues → Redis → DB, mit 30-s-Timeout. `catch-exit` entfernt (wartete nicht auf async Callbacks). | – | – | – |
 | X | Dev/Prod-Parität | ✅ | docker-compose mit Redis, Paperless, Bull-Board und ngrok bildet dieselben Backing Services ab. `docker-compose.example.yml` und `config.example.yml` sind eingecheckt. | – | – | – |
 | XI | Logs | ✅ | Logtape nach stdout, Redaction für JWT und Private-Key, JSON Lines bei `NODE_ENV=production`. Kein `console.*` mehr außerhalb des Loggers, Env und Config werden nicht mehr komplett geloggt. | – | – | – |
-| XII | Admin-Prozesse | ❌ | Migrationen laufen implizit beim Start (`db.ts`). Kein CLI für Token-Reset, Channel-Reset, Re-Queue oder Config-Check. | Einmal-Kommandos im selben Image (`node build/cli.js migrate \| reset-token \| requeue \| validate-config`). Migrationen als eigener Schritt. | **Mittel** | Admin-CLI |
+| XII | Admin-Prozesse | ✅ | `src/cli.ts` im selben Image: `validate-config [--online]`, `migrate`, `reset-token`, `reset-channel`, `requeue` (`node build/cli.js <cmd>`, siehe README). Migrationen laufen weiterhin auch beim App-Start. | – | – | – |
 
 ## Weitere Befunde
 
@@ -37,7 +37,7 @@ Keine offenen Befunde. Erledigt: Webhook-Sicherheit (zufälliges Token pro Chann
 
 1. Quick Wins und Weitere Befunde sind erledigt.
 2. III (Env-Konfiguration mit YAML-Fallback). IX ist erledigt.
-3. XII (CLI), dann VIII (Prozesstypen).
+3. VIII (Prozesstypen). XII ist erledigt.
 4. VI (Stateless) zuletzt und nur bei Bedarf an horizontaler Skalierung. Für Single-Instance-Betrieb mit persistentem Volume ist der Zustand vertretbar.
 
-Ein inkrementeller Umbau auf Ports & Adapters verbilligt IV, VI, VIII und XII, siehe [`CLEAN-ARCHITECTURE-REPORT.md`](CLEAN-ARCHITECTURE-REPORT.md).
+Ein inkrementeller Umbau auf Ports & Adapters verbilligt IV, VI und VIII, siehe [`CLEAN-ARCHITECTURE-REPORT.md`](CLEAN-ARCHITECTURE-REPORT.md).
