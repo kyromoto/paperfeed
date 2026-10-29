@@ -1,8 +1,8 @@
+import type { Logger } from "@logtape/logtape";
+import type { Job } from "bullmq";
+import type { DriveMonitor, RenewChannelJobPayload } from "./drive-monitor";
 import type { CollectChangesJobPayload, FileProcessor, ProcessChangesJobPayload, ProcessStep } from "./file-processor";
 import type { Config } from "./types";
-import type { DriveMonitor, RenewChannelJobPayload } from "./drive-monitor";
-import type { Job } from "bullmq";
-import type { Logger } from "@logtape/logtape";
 
 export function makeCollectChangesQueueProcessor(
 	logger: Logger,
@@ -32,7 +32,6 @@ export function makeCollectChangesQueueProcessor(
 
 export function makeProcessChangesQueueProcessor(processors: Map<string, FileProcessor>) {
 	return async (job: Job<ProcessChangesJobPayload>) => {
-		
 		await job.log(`Finding processor by accountId ...`);
 		const processor = processors.get(job.data.accountId);
 
@@ -77,10 +76,8 @@ export function makeProcessChangesQueueProcessor(processors: Map<string, FilePro
 	};
 }
 
-
 export function makeRenewChannelQueueProcessor(monitors: Map<string, DriveMonitor>) {
 	return async (job: Job<RenewChannelJobPayload>) => {
-
 		await job.log(`Find monitor for accountId ${job.data.accountId} ...`);
 		const monitor = monitors.get(job.data.accountId);
 

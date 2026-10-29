@@ -1,4 +1,3 @@
-
 import type { Logger } from "@logtape/logtape";
 import type bullmq from "bullmq";
 import type { Request, Response } from "express";
@@ -10,9 +9,8 @@ export const handleWebhook = (
 	logger: Logger,
 	config: Config,
 	queue: bullmq.Queue<CollectChangesJobPayload>,
-	monitors: Map<string, DriveMonitor>
+	monitors: Map<string, DriveMonitor>,
 ) => {
-
 	const debounceMS = config.server.queue.debounce.collectChangesSec * 1000;
 
 	return async (req: Request, res: Response) => {
@@ -31,9 +29,7 @@ export const handleWebhook = (
 			const accountId = Array.from(monitors.entries()).find(
 				([_accountId, monitor]) => monitor.getChannelId() === channelId,
 			)?.[0];
-			const account = config.accounts.find(
-				(account) => account.id === accountId,
-			);
+			const account = config.accounts.find((account) => account.id === accountId);
 
 			if (!account) {
 				const msg = `No account found for channel id = ${channelId} ... ignoring`;
@@ -54,12 +50,12 @@ export const handleWebhook = (
 					jobId: `collect-changes-${account.id}-${isoDate}`,
 					deduplication: {
 						id: `collect-changes-${account.id}`,
-						ttl: debounceMS,	// Debounce Mode
-						extend: true,		// Debounce Mode
-						replace: true,		// Debounce Mode
+						ttl: debounceMS, // Debounce Mode
+						extend: true, // Debounce Mode
+						replace: true, // Debounce Mode
 					},
-					delay: debounceMS,		// Debounce Mode
-				}
+					delay: debounceMS, // Debounce Mode
+				},
 			);
 
 			res.status(200).send("OK");
