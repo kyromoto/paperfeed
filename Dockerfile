@@ -24,7 +24,8 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 ENV NODE_ENV=production
 
-HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
-	CMD wget -qO- http://127.0.0.1:3000/health || exit 1
+# port is read from the config file (server.http.port), so it is not hard-coded here
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+	CMD ["node", "build/cli.js", "healthcheck"]
 
 CMD ["node", "build/main.js"]

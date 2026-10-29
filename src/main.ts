@@ -26,13 +26,14 @@ import {
 import { attachWorkerLogging, collectOutstandingJobs } from "./queue-utils";
 import { connectRedis, createQueues } from "./queues";
 import { setupShutdownHandler } from "./shutdown";
+import { APP_VERSION } from "./version";
 
 async function main() {
 	const startTime = Date.now();
 
 	const logger = await configureLogging();
 
-	logger.info(`App version: ${process.env.npm_package_version}`);
+	logger.info(`App version: ${APP_VERSION}`);
 	logger.info(`Environment: ${env.NODE_ENV} | Log level: ${env.LOG_LEVEL}`);
 
 	logger.info(`Loading config from ${env.CONFIG_PATH} ...`);

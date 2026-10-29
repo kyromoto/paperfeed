@@ -10,6 +10,7 @@ const EXIT_OK = 0;
 const EXIT_ERROR = 1;
 const EXIT_USAGE = 2;
 const ONLINE_CHECK_TIMEOUT_MS = 10_000;
+const HEALTHCHECK_TIMEOUT_MS = 4_000;
 
 type Context = {
 	logger: Logger;
@@ -34,6 +35,12 @@ const commands: Record<string, Command> = {
 		description: "Validate config file; --online also checks Redis, Drive folders and Paperless login",
 		needsAccount: false,
 		run: validateConfig,
+	},
+	healthcheck: {
+		usage: "healthcheck",
+		description: "Check GET /health of the local app on the port from the config (used by the Docker HEALTHCHECK)",
+		needsAccount: false,
+		run: healthcheck,
 	},
 	migrate: {
 		usage: "migrate",
@@ -107,6 +114,20 @@ const openDb = async (ctx: Context, config: Config) => {
 	ctx.onClose(() => db.close());
 	return db;
 };
+
+async function healthcheck(ctx: Context) {
+	const config = await readConfig(ctx.logger);
+	const url = `http://127.0.0.1:${config.server.http.port}/health`;
+
+	try {
+		await axios.get(url, { timeout: HEALTHCHECK_TIMEOUT_MS });
+		out(`OK ${url}`);
+		return EXIT_OK;
+	} catch (error) {
+		out(`FAILED ${url}: ${error instanceof Error ? error.message : String(error)}`);
+		return EXIT_ERROR;
+	}
+}
 
 async function migrateCommand(ctx: Context) {
 	const config = await readConfig(ctx.logger);

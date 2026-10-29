@@ -83,7 +83,8 @@ On startup, all files currently in the src folder are scanned and queued directl
 |---|---|
 | `src/main.ts` | Wires everything together; owns queue/worker setup and startup scan |
 | `src/shutdown.ts` | `setupShutdownHandler()` — signal/uncaughtException handler with ordered shutdown (http → scheduler → workers → monitors → queues → redis → db, 30s timeout). Registered at the end of `main()` once all resources exist. Replaces `catch-exit`, which does not await async callbacks. |
-| `src/cli.ts` | Admin CLI (`node build/cli.js <cmd>`, `npm run cli -- <cmd>`): `validate-config [--online]`, `migrate`, `reset-token`, `reset-channel`, `requeue`. Exit codes 0/1/2. Dynamic imports keep `help` working without `CONFIG_PATH`. Closes SQLite/Redis/queues after every command. |
+| `src/cli.ts` | Admin CLI (`node build/cli.js <cmd>`, `npm run cli -- <cmd>`): `validate-config [--online]`, `healthcheck` (used by the Dockerfile `HEALTHCHECK`, port from config), `migrate`, `reset-token`, `reset-channel`, `requeue`. Exit codes 0/1/2. Dynamic imports keep `help` working without `CONFIG_PATH`. Closes SQLite/Redis/queues after every command. |
+| `src/version.ts` | `APP_VERSION` read from `package.json` (`npm_package_version` is only set when started via npm) |
 | `src/logging.ts` | `configureLogging()` — shared by app and CLI (redaction, JSON lines in production) |
 | `src/queues.ts` | `connectRedis()` and `createQueues()` — queue names and default job options, shared by app and CLI so `requeue` behaves like the startup scan |
 | `src/drive-monitor.ts` | Manages one Google Drive webhook channel per account; on `start()` first attempts to stop the previously persisted channel (if any), then creates a new channel and persists `{channelId, resourceId, expiration}` to SQLite. Does not schedule its own renewal. |

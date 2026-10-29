@@ -144,6 +144,7 @@ npm run cli -- <command>                            # local development
 | Command | Description |
 |---|---|
 | `validate-config [--online]` | Validates the config file and cross references. `--online` also checks Redis, the Drive source/destination folders and the Paperless login. |
+| `healthcheck` | Calls `GET /health` of the local app on the port from `server.http.port`. Used by the Docker `HEALTHCHECK`, exit code `0` when healthy. |
 | `migrate` | Runs the SQLite migrations in `{data_path}/db` without starting the app. |
 | `reset-token <account>` | Deletes the stored Drive change token. Changes made before the next collect are not tracked, run `requeue` afterwards. |
 | `reset-channel <account>` | Stops the persisted webhook channel at Google and deletes its state. A running app creates a new channel via the renewal poller. |

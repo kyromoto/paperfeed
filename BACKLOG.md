@@ -58,7 +58,6 @@ Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines P
 - `src/env.ts`: optionale Variablen `PORT`, `REDIS_URL`, `REDIS_PREFIX`, `DATA_PATH`, `WEBHOOK_URL` sowie Secrets (Drive-Credentials, Paperless-Zugang)
 - `src/config-repository.ts`: Env-Werte überschreiben YAML-Werte vor der Zod-Validierung (abwärtskompatibel)
 - `src/types.ts`: betroffene `server.*`-Felder optional machen, Validierung nach dem Merge
-- `Dockerfile`: `HEALTHCHECK` nutzt aktuell fest Port 3000, Port aus `PORT` übernehmen
 - README und `config.example.yml` anpassen
 
 ---

@@ -27,9 +27,10 @@ export const configureLogging = async () => {
 				lowestLevel: env.LOG_LEVEL,
 			},
 			{
+				// LogTape logs an info line on every configure(); only surface problems of the logging itself
 				category: ["logtape", "meta"],
 				sinks: ["console"],
-				lowestLevel: env.LOG_LEVEL,
+				lowestLevel: "warning",
 			},
 		],
 	});
