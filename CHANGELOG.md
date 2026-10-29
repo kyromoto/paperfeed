@@ -1,3 +1,11 @@
+## [1.8.3](https://github.com/kyromoto/paperfeed/compare/v1.8.2...v1.8.3) (2026-10-29)
+
+
+### Bug Fixes
+
+* ordered graceful shutdown, replace catch-exit ([248297e](https://github.com/kyromoto/paperfeed/commit/248297e23ae858bfc2c76997c99f8de625d47d8c))
+* verify X-Goog-Channel-Token on webhook and refresh README ([9a9efc4](https://github.com/kyromoto/paperfeed/commit/9a9efc476fb2c1d3f318b91fa016b2e2f09d04f6))
+
 ## [1.8.2](https://github.com/kyromoto/paperfeed/compare/v1.8.1...v1.8.2) (2026-10-29)
 
 
