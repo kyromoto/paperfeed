@@ -65,7 +65,7 @@ Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines P
 **Ziel:** Pragmatische Clean Architecture (Ports & Adapters light): Use-Cases ohne SDK-/Queue-/HTTP-Abhängigkeiten, Adapter für Drive, Paperless, SQLite, BullMQ, Express. Erstmals testbar.
 
 **Umsetzung (Reihenfolge laut Report, Abschnitt 6):**
-1. Ports + `process-file`-Use-Case mit Charakterisierungstests
+1. Ports + `process-file`-Use-Case; die Charakterisierungstests für Zustandsmaschine, Webhook, Scheduler und Shutdown existieren bereits, es fehlen `FileProcessor` und `lib.ts` (Drive-/Paperless-SDK, Dateipuffer), die erst mit den Ports sinnvoll testbar werden
 2. `handle-webhook`- und `collect-changes`-Use-Case, jobId-Schemata zentralisieren
 3. Persistence-Ports zusammen mit Env-Konfiguration bzw. Redis-Umzug
 4. Prozesstypen; die Admin-CLI (`src/cli.ts`) wird dabei zu einem weiteren Eingangsadapter
@@ -90,7 +90,7 @@ Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines P
 6. **Doppelverarbeitung bei Absturz:** Ein hängender Job wird neu zugestellt und kann dieselbe Datei erneut hochladen.
 
 **Umsetzung (grobe Reihenfolge):**
-1. Tests für Zustandsmaschine, Webhook, Scheduler und Shutdown (Voraussetzung, siehe Testkonvention)
+1. ~~Tests für Zustandsmaschine, Webhook, Scheduler und Shutdown~~ (erledigt: `queue-processor`, `controllers`, `channel-renewal-scheduler`, `shutdown`, `drive-monitor`; offen bleiben `FileProcessor` und `lib.ts`)
 2. Channel-Zustand inklusive Token und Change-Token nach Redis, hinter den bestehenden Repository-Schnittstellen (`ChannelRepository`, `ChangeTokenRepository`); Webhook prüft gegen den gemeinsamen Zustand
 3. Channel-Besitz klären: genau ein Prozess erzeugt, erneuert und stoppt Channels, entweder fester Prozesstyp `scheduler` (siehe „Prozesstypen“) oder Leader per Redis-Lock mit Ablauf; `web` und `worker` stoppen beim Herunterfahren keine Channels
 4. Dateipuffer entfernen: Download und Upload in einem Schritt streamen (Retry läuft komplett von vorn; Paperless lehnt Duplikate in der Regel am Inhalt ab) oder auf einem Host ein geteiltes Volume nutzen

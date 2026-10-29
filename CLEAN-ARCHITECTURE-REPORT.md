@@ -66,7 +66,7 @@ Gesamt: etwa 60 % des Codes werden verschoben oder umgeschrieben.
 ## 4. Risiken
 
 - **Keine Tests:** Regressionsrisiko beim Umbau. Die Invarianten aus `CLAUDE.md` (Deduplizierung, `process`-Concurrency 1, Step-Resume nach Retry, Channel-Lebenszyklus) müssen erhalten bleiben.
-- **Gegenmaßnahme:** Zuerst Charakterisierungstests für Zustandsmaschine und Webhook-Entscheid schreiben, dann umbauen.
+- **Gegenmaßnahme:** Zuerst Charakterisierungstests schreiben, dann umbauen. Für Zustandsmaschine (`queue-processor`), Webhook-Entscheid (`controllers`), Channel-Erneuerung, Shutdown und `DriveMonitor` sind sie vorhanden (104 Tests). Es fehlen `FileProcessor` und `lib.ts`, deren Tests ohne Ports nur über `vi.mock` von `axios` und `./lib` möglich wären.
 - **Indirektion:** Bei ~1400 Zeilen ist der zusätzliche Boilerplate spürbar, der Nutzen entsteht erst mit Tests oder Austauschbarkeit.
 
 ## 5. Auswirkung auf die 12 Faktoren
