@@ -13,7 +13,7 @@ Jobs are backed by [BullMQ](https://bullmq.io/) with Redis. Webhook channel rene
 
 ## Requirements
 
-- Node.js ≥ 22
+- Node.js ≥ 24
 - Redis
 - A publicly reachable HTTPS URL for the Google Drive webhook
 - A Google service account with Drive API access and the source/destination folders shared with it

@@ -1,4 +1,4 @@
-FROM node:22.23.4-alpine AS builder
+FROM node:24.22.2-alpine3.24 AS builder
 
 WORKDIR /app
 
@@ -12,7 +12,7 @@ RUN npm run build
 
 
 
-FROM node:22.23.4-alpine AS production
+FROM node:24.22.2-alpine3.24 AS production
 
 WORKDIR /app
 
