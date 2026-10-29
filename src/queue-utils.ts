@@ -8,6 +8,29 @@ export type ProcessFileBulkJob = {
 	opts: bullmq.BulkJobOptions;
 };
 
+export type EnqueueResult = { created: number; alreadyQueued: number };
+
+/**
+ * Adds the jobs in bulk and reports how many were really created.
+ *
+ * With a deduplication id BullMQ does not create a job while one with the same id exists, `addBulk` then returns the
+ * existing job (with its id) in the position of the requested one. So a returned id that differs from the requested
+ * `jobId` means "already queued". Verified against BullMQ 5.78, repeat that check when upgrading BullMQ.
+ */
+export async function enqueueJobs(
+	queue: { addBulk: (jobs: ProcessFileBulkJob[]) => Promise<{ id?: string }[]> },
+	jobs: ProcessFileBulkJob[],
+): Promise<EnqueueResult> {
+	if (jobs.length === 0) {
+		return { created: 0, alreadyQueued: 0 };
+	}
+
+	const added = await queue.addBulk(jobs);
+	const alreadyQueued = added.filter((job, index) => job.id !== jobs[index].opts.jobId).length;
+
+	return { created: jobs.length - alreadyQueued, alreadyQueued };
+}
+
 export async function collectOutstandingJobs(
 	processors: Map<string, FileProcessor>,
 	queueName: string,

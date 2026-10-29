@@ -118,7 +118,7 @@ pnpm run cli <command>                              # local development
 | `migrate` | Runs the SQLite migrations in `{data_path}/db` without starting the app. |
 | `reset-token <account>` | Deletes the stored Drive change token. Changes made before the next collect are not tracked, run `requeue` afterwards. |
 | `reset-channel <account>` | Stops the persisted webhook channel at Google and deletes its state. A running app creates a new channel via the renewal poller. |
-| `requeue <account>` | Queues all files currently in the source folder for processing (duplicates are prevented by the job deduplication id). |
+| `requeue <account>` | Queues all files currently in the source folder for processing. Duplicates are prevented by the job deduplication id; the output tells them apart: `dev: 2 file(s) queued, 1 already queued`, or `dev: no files in the source folder`. |
 
 `<account>` is the `id` or `name` of an entry in `accounts`. Exit codes: `0` success, `1` error, `2` usage error.
 

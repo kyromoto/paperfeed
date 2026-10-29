@@ -197,7 +197,7 @@ async function requeue(ctx: Context) {
 	const { FileProcessor } = await import("./file-processor");
 	const { FileStore } = await import("./file-store");
 	const { getDriveClient } = await import("./lib");
-	const { collectOutstandingJobs } = await import("./queue-utils");
+	const { collectOutstandingJobs, enqueueJobs } = await import("./queue-utils");
 	const { connectRedis, createQueues, PROCESS_CHANGES_QUEUE } = await import("./queues");
 
 	const processor = new FileProcessor(
@@ -220,12 +220,13 @@ async function requeue(ctx: Context) {
 	ctx.onClose(() => redisConnection.quit());
 
 	const jobs = await collectOutstandingJobs(new Map([[account.id, processor]]), PROCESS_CHANGES_QUEUE);
+	const { created, alreadyQueued } = await enqueueJobs(processChangesQueue, jobs);
 
-	if (jobs.length > 0) {
-		await processChangesQueue.addBulk(jobs);
-	}
-
-	out(`${account.name}: ${jobs.length} file(s) queued for processing`);
+	out(
+		jobs.length === 0
+			? `${account.name}: no files in the source folder`
+			: `${account.name}: ${created} file(s) queued, ${alreadyQueued} already queued`,
+	);
 	return EXIT_OK;
 }
 
