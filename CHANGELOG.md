@@ -1,3 +1,10 @@
+## [1.9.1](https://github.com/kyromoto/paperfeed/compare/v1.9.0...v1.9.1) (2026-10-29)
+
+
+### Bug Fixes
+
+* quiet LogTape meta log, read app version from package.json, config-driven healthcheck ([4859925](https://github.com/kyromoto/paperfeed/commit/485992570b13eca3e5ee52cb1d00a608c6665169))
+
 # [1.9.0](https://github.com/kyromoto/paperfeed/compare/v1.8.3...v1.9.0) (2026-10-29)
 
 
