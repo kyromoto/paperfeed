@@ -39,3 +39,5 @@ Keine offenen Befunde. Erledigt: Webhook-Sicherheit (zufälliges Token pro Chann
 2. III (Env-Konfiguration mit YAML-Fallback). IX ist erledigt.
 3. XII (CLI), dann VIII (Prozesstypen).
 4. VI (Stateless) zuletzt und nur bei Bedarf an horizontaler Skalierung. Für Single-Instance-Betrieb mit persistentem Volume ist der Zustand vertretbar.
+
+Ein inkrementeller Umbau auf Ports & Adapters verbilligt IV, VI, VIII und XII, siehe [`CLEAN-ARCHITECTURE-REPORT.md`](CLEAN-ARCHITECTURE-REPORT.md).

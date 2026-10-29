@@ -58,7 +58,8 @@ POST /webhook  (controllers.ts)
     │  validates X-Goog-Channel-Id against active monitors
     ▼
 collect-changes Queue  (BullMQ/Redis)
-    │  jobId = "collect-changes-{accountId}"  ← deterministic, prevents duplicate concurrent jobs
+    │  jobId = "collect-changes-{accountId}-{timestamp}"
+    │  deduplication.id = "collect-changes-{accountId}"  ← debounce (ttl + extend + replace, delay = debounce)
     ▼
 collect-changes Worker  (queue-processor.ts)
     │  calls Drive changes.list API, uses change token from SQLite
@@ -99,9 +100,9 @@ On startup, all files currently in the src folder are scanned and queued directl
 
 ### Important invariants
 
-- The `collect-changes` jobId is `collect-changes-${accountId}` (deterministic). This prevents concurrent collect jobs for the same account from racing on the Drive change token. Do not change it to a random ID.
-- The `process-changes` jobId is `process-changes-${accountId}-${fileId}` (deterministic). This prevents the same file from being downloaded/uploaded to Paperless twice concurrently (FileStore collision). Do not change it to a random ID.
-- The `renew-channel` jobId is `renew-channel-${accountId}-${timestamp}` combined with `deduplication.id = renew-channel-${accountId}`, mirroring the `process-changes` pattern. Jobs are only ever enqueued with `delay: 0` by `ChannelRenewalScheduler` when the poller determines renewal is due — there is never an overlapping *delayed* job to conflict with, so the jobId can be freshly generated each time without the removal/tracking dance the old delayed-job design needed.
+- The `collect-changes` job uses `deduplication.id = collect-changes-${accountId}` (jobId is `collect-changes-${accountId}-${timestamp}`) in debounce mode (`ttl` and `delay` = `collectChangesSec`, `extend`, `replace`). Bursts of webhooks for the same account collapse into one job, so collect jobs do not race on the Drive change token. Do not drop the deduplication id.
+- The `process-changes` job uses `deduplication.id = process-changes-${accountId}-${fileId}` (jobId is `process-changes-${accountId}-${fileId}-${timestamp}`, built in `main.ts` and `queue-utils.ts`). This prevents the same file from being downloaded/uploaded to Paperless twice concurrently (FileStore collision). Do not drop the deduplication id.
+- The `renew-channel` jobId is `renew-channel-${accountId}-${timestamp}` combined with `deduplication.id = renew-channel-${accountId}`, mirroring the `process-changes` pattern (timestamped jobId + `deduplication.id`). Jobs are only ever enqueued with `delay: 0` by `ChannelRenewalScheduler` when the poller determines renewal is due — there is never an overlapping *delayed* job to conflict with, so the jobId can be freshly generated each time without the removal/tracking dance the old delayed-job design needed.
 - Channel state (`channelId`, `resourceId`, `expiration`) lives in SQLite (`drive_channels` table), not in-memory or in a BullMQ delayed job. `DriveMonitor.start()` reads any previously persisted state for the account and tries to stop that channel with Google (best-effort — failures are logged, not thrown, since the old channel may already be expired or invalid), then always creates a fresh channel and persists the new state. It does not schedule anything itself. `ChannelRenewalScheduler` is the sole reader of this state during runtime and the sole thing that decides when to renew, polling every `config.server.queue.renewPollIntervalSec` seconds (default 15s — keep this smaller than `RENEW_OFFSET_MS`/30s so a channel is never allowed to actually expire before renewal is detected as due). `resourceId` is required (alongside `channelId`) by Google's `channels.stop` API — without it, stop calls fail silently.
 - Each channel gets a random token (`files.watch` `token`) that `DriveMonitor` keeps in memory only (a fresh channel is created on every start); `handleWebhook` rejects calls whose `X-Goog-Channel-Token` does not match (`verifyChannelToken`). Never log the raw request headers without stripping that header.
 - The `renew-channel` queue has `attempts: 3` with exponential backoff, so a transient Drive API failure during renewal no longer silently leaves the channel to expire.
@@ -119,4 +120,4 @@ On startup, all files currently in the src folder are scanned and queued directl
 
 ## Backlog
 
-Open work items are tracked in [`BACKLOG.md`](BACKLOG.md). Read it before working on race conditions or the DriveMonitor. The "12-Factor" section there derives from the 12-factor report.
+Open work items are tracked in [`BACKLOG.md`](BACKLOG.md). Read it before working on race conditions or the DriveMonitor. The "12-Factor" section there derives from the 12-factor report. [`CLEAN-ARCHITECTURE-REPORT.md`](CLEAN-ARCHITECTURE-REPORT.md) evaluates a pragmatic ports-and-adapters restructuring (backlog item "Ports & Adapters"); update it if the module structure changes.

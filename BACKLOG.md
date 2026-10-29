@@ -90,3 +90,20 @@ Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines P
 **Nur umsetzen, wenn horizontale Skalierung nötig wird.** Single-Instance mit persistentem Volume ist vertretbar.
 
 **Umsetzung:** `ChangeTokenRepository` und `ChannelRepository` auf Redis umstellen (Interface bleibt), `src/db.ts` und SQLite entfernen, Datenmigration aus Bestands-SQLite. `FileStore` durch Streaming Drive → Paperless ersetzen oder geteilten Storage nutzen. Webhook-Zuordnung `channelId → account` und das Channel-Token (`X-Goog-Channel-Token`, aktuell nur in `DriveMonitor` im Speicher) aus dem geteilten Store statt aus In-Memory-Maps.
+
+---
+
+## Refactoring — Ports & Adapters, inkrementell
+
+**Eingriff:** Mittel bis Hoch, in Etappen. Siehe `CLEAN-ARCHITECTURE-REPORT.md`.
+
+**Ziel:** Pragmatische Clean Architecture (Ports & Adapters light): Use-Cases ohne SDK-/Queue-/HTTP-Abhängigkeiten, Adapter für Drive, Paperless, SQLite, BullMQ, Express. Erstmals testbar.
+
+**Umsetzung (Reihenfolge laut Report, Abschnitt 6):**
+1. Ports + `process-file`-Use-Case mit Charakterisierungstests
+2. `handle-webhook`- und `collect-changes`-Use-Case, jobId-Schemata zentralisieren
+3. Persistence-Ports zusammen mit Env-Konfiguration bzw. Redis-Umzug
+4. Admin-CLI und Prozesstypen als weitere Eingangsadapter
+5. Verzeichnisstruktur zuletzt
+
+**Hinweis:** Verbilligt die 12-Factor-Punkte IV, VI, VIII, XII; deshalb vor oder zusammen mit diesen Einträgen umsetzen. Nicht als Big Bang.
