@@ -9,7 +9,7 @@ Use Google Drive as a watch folder for [paperless-ngx](https://docs.paperless-ng
 3. Each `process-changes` job downloads the file, POSTs it to the Paperless-ngx document upload endpoint, and moves it from the source to the destination folder in Drive.
 4. On startup, all files already in the source folder are scanned and queued so nothing is missed while the app was offline.
 
-Jobs are backed by [BullMQ](https://bullmq.io/) with Redis. Webhook channel renewal is handled automatically — a delayed job fires 30 seconds before the channel expires to re-register it.
+Jobs are backed by [BullMQ](https://bullmq.io/) with Redis. Webhook channel renewal is handled automatically — a poller checks the persisted channel state every `renewPollIntervalSec` seconds and enqueues a `renew-channel` job when the channel expires within 30 seconds. Incoming webhooks are verified against a random per-channel token (`X-Goog-Channel-Token`).
 
 ## Requirements
 
@@ -25,12 +25,20 @@ The app is configured via a YAML file. Set `CONFIG_PATH` to point to it.
 
 ```yaml
 server:
-  data_path: data               # directory for change tokens and temp files
+  data_path: data               # SQLite database (db/) and temporary files (files/)
   http:
     port: 3000
   queue:
     redis:
       url: redis://localhost:6379
+      prefix: paperless-gdrive-link   # optional, BullMQ key prefix
+    concurrency:                      # optional worker concurrency
+      collect: 5
+      process: 1
+      renew: 1
+    debounce:
+      collectChangesSec: 5            # optional, debounce for webhook-triggered change collection
+    renewPollIntervalSec: 15          # optional, how often channel expiry is checked (keep below 30)
   drive_monitor:
     webhook_url: https://your-public-url.example.com
 

@@ -26,13 +26,17 @@ export const handleWebhook = (
 				throw new AcceptableWebhookError(msg, 200, "OK");
 			}
 
-			const accountId = Array.from(monitors.entries()).find(
-				([_accountId, monitor]) => monitor.getChannelId() === channelId,
-			)?.[0];
+			const [accountId, monitor] =
+				Array.from(monitors.entries()).find(([_accountId, monitor]) => monitor.getChannelId() === channelId) ?? [];
 			const account = config.accounts.find((account) => account.id === accountId);
 
-			if (!account) {
+			if (!account || !monitor) {
 				const msg = `No account found for channel id = ${channelId} ... ignoring`;
+				throw new AcceptableWebhookError(msg, 200, "OK");
+			}
+
+			if (!monitor.verifyChannelToken(req.get("X-Goog-Channel-Token"))) {
+				const msg = `${account.name}: Invalid or missing channel token for channel id = ${channelId} ... ignoring`;
 				throw new AcceptableWebhookError(msg, 200, "OK");
 			}
 
@@ -61,7 +65,8 @@ export const handleWebhook = (
 			res.status(200).send("OK");
 		} catch (error: unknown) {
 			if (error instanceof AcceptableWebhookError) {
-				logger.warn(error.message, { headers: req.headers, ...error.props });
+				const { "x-goog-channel-token": _token, ...headers } = req.headers;
+				logger.warn(error.message, { headers, ...error.props });
 				res.status(error.status).send(error.body);
 				return;
 			}

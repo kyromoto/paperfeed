@@ -14,6 +14,7 @@ export class DriveMonitor {
 	private channelId: string | null | undefined = null;
 	private resourceId: string | null | undefined = null;
 	private channelExpiration: number | null | undefined = null;
+	private channelToken: string | null = null;
 	private isStarting = false;
 
 	constructor(
@@ -60,6 +61,7 @@ export class DriveMonitor {
 		}
 
 		const channelId = crypto.randomUUID();
+		const channelToken = crypto.randomBytes(32).toString("hex");
 		const channelAddress = new URL("/webhook", this.config.server.drive_monitor.webhook_url).href;
 		const channelExpiration = Date.now() + this.driveAccount.props.channel_expiration_sec * 1000;
 
@@ -74,6 +76,7 @@ export class DriveMonitor {
 				fileId: this.account.props.drive_src_folder_id,
 				requestBody: {
 					id: channelId,
+					token: channelToken,
 					type: "webhook",
 					address: channelAddress,
 					expiration: channelExpiration.toString(),
@@ -96,6 +99,7 @@ export class DriveMonitor {
 			this.logger.info(`Channel started`, { channel });
 
 			this.channelId = channel.data.id;
+			this.channelToken = channelToken;
 			this.resourceId = channel.data.resourceId;
 			this.channelExpiration = Number.parseInt(channel.data.expiration, 10);
 
@@ -117,6 +121,7 @@ export class DriveMonitor {
 		const rid = this.resourceId;
 		this.channelId = null;
 		this.resourceId = null;
+		this.channelToken = null;
 
 		await this.driveClient.channels
 			.stop({
@@ -128,6 +133,17 @@ export class DriveMonitor {
 			.catch((err) => {
 				this.logger.error(`Failed to stop channel with id ${cid}: ${err.message}`, { error: err });
 			});
+	}
+
+	/** Checks the `X-Goog-Channel-Token` of an incoming webhook against the token set when the channel was created. */
+	public verifyChannelToken(token: string | undefined): boolean {
+		if (!this.channelToken || !token) {
+			return false;
+		}
+
+		const expected = Buffer.from(this.channelToken);
+		const actual = Buffer.from(token);
+		return expected.length === actual.length && crypto.timingSafeEqual(expected, actual);
 	}
 
 	public getChannelId() {

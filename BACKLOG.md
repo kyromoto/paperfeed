@@ -48,22 +48,6 @@ Versuche: 3/3
 
 Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines Punkts den Report aktualisieren (Status, Ist-Zustand, Gesamtergebnis).
 
-## Security — Webhook-Token verifizieren
-
-**Eingriff:** Gering. Siehe `12-FACTOR-REPORT.md`, Weitere Befunde.
-
-**Umsetzung:** In `src/drive-monitor.ts` beim `files.watch` ein zufälliges `token` setzen (pro Channel, in `drive_channels` persistieren) und in `src/controllers.ts` den Header `X-Goog-Channel-Token` gegen den gespeicherten Wert prüfen. Bei Abweichung ignorieren (200, wie bei unbekanntem Channel).
-
----
-
-## Docs — README aktualisieren
-
-**Eingriff:** Gering. Siehe `12-FACTOR-REPORT.md`, Weitere Befunde.
-
-**Umsetzung:** Channel-Erneuerung als Poller (`ChannelRenewalScheduler`, `renewPollIntervalSec`) statt Delayed-Job beschreiben; `data_path` enthält SQLite-DB (`db/`) und Temp-Dateien (`files/`), nicht Change-Tokens; `queue`-Optionen (`concurrency`, `debounce`, `renewPollIntervalSec`) dokumentieren.
-
----
-
 ## Refactoring — Env-basierte Konfiguration (12-Factor III, IV, VII)
 
 **Eingriff:** Mittel. Siehe `12-FACTOR-REPORT.md`, Faktoren III, IV, VII.

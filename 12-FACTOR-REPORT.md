@@ -2,7 +2,7 @@
 
 Bewertung von paperfeed gegen die zwölf Faktoren von [12factor.net](https://12factor.net).
 
-- **Stand:** v1.8.2 + Quick Wins + Shutdown, 2026-10-29
+- **Stand:** v1.8.2 + Quick Wins + Shutdown + Weitere Befunde, 2026-10-29
 - **Pflege:** Bei Änderungen an Konfiguration, Zustandshaltung, Prozessmodell, Shutdown, Logging oder Docker/CI sowie bei Umsetzung eines verlinkten Backlog-Punkts Status, Ist-Zustand und Gesamtergebnis hier aktualisieren (siehe `CLAUDE.md`).
 - **Offene Aufgaben:** [`BACKLOG.md`](BACKLOG.md), Abschnitt „12-Factor“.
 
@@ -31,14 +31,11 @@ Bewertung von paperfeed gegen die zwölf Faktoren von [12factor.net](https://12f
 
 ## Weitere Befunde
 
-| Thema | Befund | Eingriff | Backlog |
-|---|---|---|---|
-| Webhook-Sicherheit | Es wird nur `X-Goog-Channel-Id` geprüft, nicht `X-Goog-Channel-Token`. Wer die Channel-ID kennt, kann Jobs auslösen. | Gering | Webhook-Token |
-| README | Beschreibt noch die Delayed-Job-Erneuerung und `data_path` als „change tokens“. | Gering | README |
+Keine offenen Befunde. Erledigt: Webhook-Sicherheit (zufälliges Token pro Channel, `X-Goog-Channel-Token` wird in `controllers.ts` geprüft) und README (Poller statt Delayed-Job, `data_path`, `queue`-Optionen).
 
 ## Empfohlene Reihenfolge
 
-1. Quick Wins (II, V, X, XI erledigt): Webhook-Token, README.
+1. Quick Wins und Weitere Befunde sind erledigt.
 2. III (Env-Konfiguration mit YAML-Fallback). IX ist erledigt.
 3. XII (CLI), dann VIII (Prozesstypen).
 4. VI (Stateless) zuletzt und nur bei Bedarf an horizontaler Skalierung. Für Single-Instance-Betrieb mit persistentem Volume ist der Zustand vertretbar.
