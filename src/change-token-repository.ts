@@ -20,4 +20,12 @@ export class ChangeTokenRepository {
 			`)
 			.run(accountId, folderId, token, Date.now());
 	}
+
+	public delete(accountId: string, folderId: string): boolean {
+		const result = this.db
+			.prepare("DELETE FROM change_tokens WHERE account_id = ? AND folder_id = ?")
+			.run(accountId, folderId);
+
+		return result.changes > 0;
+	}
 }

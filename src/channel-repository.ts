@@ -26,4 +26,10 @@ export class ChannelRepository {
 			`)
 			.run(accountId, channelId, resourceId, expiration, Date.now());
 	}
+
+	public delete(accountId: string): boolean {
+		const result = this.db.prepare("DELETE FROM drive_channels WHERE account_id = ?").run(accountId);
+
+		return result.changes > 0;
+	}
 }

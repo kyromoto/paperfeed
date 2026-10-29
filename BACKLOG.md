@@ -63,16 +63,6 @@ Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines P
 
 ---
 
-## Feature — Admin-CLI (12-Factor XII)
-
-**Eingriff:** Mittel. Siehe `12-FACTOR-REPORT.md`, Faktor XII.
-
-**Umsetzung:** Neue `src/cli.ts` im selben Image mit Kommandos `migrate`, `reset-token <account>`, `reset-channel <account>`, `requeue <account>`, `validate-config`. Migrationen aus `openDatabase()` in `src/db.ts` in eine eigene Funktion auslagern (beim App-Start weiterhin aufgerufen).
-
-**Hinweis:** Ergänzt das Bull-Board-Feature (Queue-Sicht) um Wartungsaktionen.
-
----
-
 ## Refactoring — Prozesstypen web / worker / scheduler (12-Factor VIII)
 
 **Eingriff:** Mittel–Hoch. Siehe `12-FACTOR-REPORT.md`, Faktor VIII.
@@ -103,7 +93,7 @@ Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines P
 1. Ports + `process-file`-Use-Case mit Charakterisierungstests
 2. `handle-webhook`- und `collect-changes`-Use-Case, jobId-Schemata zentralisieren
 3. Persistence-Ports zusammen mit Env-Konfiguration bzw. Redis-Umzug
-4. Admin-CLI und Prozesstypen als weitere Eingangsadapter
+4. Prozesstypen; die Admin-CLI (`src/cli.ts`) wird dabei zu einem weiteren Eingangsadapter
 5. Verzeichnisstruktur zuletzt
 
 **Hinweis:** Verbilligt die 12-Factor-Punkte IV, VI, VIII, XII; deshalb vor oder zusammen mit diesen Einträgen umsetzen. Nicht als Big Bang.

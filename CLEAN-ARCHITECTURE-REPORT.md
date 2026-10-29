@@ -80,7 +80,7 @@ Clean Architecture behebt keinen Faktor allein, sie senkt die Kosten der Backlog
 | VI Prozesse (stateless) | **stark** | Zustand (Token, Channel, Dateipuffer) austauschbar, Channel-Token nicht mehr im Monitor-Objekt | Hoch → Mittel–Hoch |
 | VIII Nebenläufigkeit | **stark** | `web`/`worker`/`scheduler` komponieren nur die benötigten Adapter | Mittel–Hoch → Mittel |
 | IX Disposability | mittel | Jeder Adapter bietet `close()`, `shutdown.ts` bekommt eine Liste statt Einzelressourcen | erledigt, vereinfacht Pflege |
-| XII Admin-Prozesse | **stark** | CLI wird ein weiterer Eingangsadapter auf denselben Use-Cases, ohne Express/BullMQ | Mittel → Gering–Mittel |
+| XII Admin-Prozesse | war stark | Inzwischen ohne Umbau umgesetzt (`src/cli.ts`), Ports würden sie nur sauberer testbar machen | erledigt |
 | X Dev/Prod-Parität | gering | In-Memory-Fakes für Dev und Tests | – |
 | I, II, V, VII, XI | neutral | – | – |
 

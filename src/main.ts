@@ -2,11 +2,9 @@ import fs from "node:fs/promises";
 import type http from "node:http";
 import path from "node:path";
 import logtape from "@logtape/logtape";
-import { DEFAULT_REDACT_FIELDS, JWT_PATTERN, redactByField, redactByPattern } from "@logtape/redaction";
 import * as bullmq from "bullmq";
 import express from "express";
 import helmet from "helmet";
-import IORedis, { type RedisOptions } from "ioredis";
 import { err, ok, Result } from "neverthrow";
 import { ChangeTokenRepository } from "./change-token-repository";
 import { startChannelRenewalScheduler } from "./channel-renewal-scheduler";
@@ -14,61 +12,25 @@ import { ChannelRepository } from "./channel-repository";
 import { ConfigFileRepository } from "./config-repository";
 import { handleHealthCheck, handleWebhook } from "./controllers";
 import { openDatabase } from "./db";
-import type { RenewChannelJobPayload } from "./drive-monitor";
 import { DriveMonitor } from "./drive-monitor";
 import * as env from "./env";
-import {
-	type CollectChangesJobPayload,
-	type CollectChangesJobResult,
-	FileProcessor,
-	type ProcessChangesJobPayload,
-	type ProcessChangesJobResult,
-} from "./file-processor";
+import { type CollectChangesJobPayload, type CollectChangesJobResult, FileProcessor } from "./file-processor";
 import { FileStore } from "./file-store";
 import { getDriveClient } from "./lib";
+import { configureLogging, ROOT_LOGGER_KEY } from "./logging";
 import {
 	makeCollectChangesQueueProcessor,
 	makeProcessChangesQueueProcessor,
 	makeRenewChannelQueueProcessor,
 } from "./queue-processor";
 import { attachWorkerLogging, collectOutstandingJobs } from "./queue-utils";
+import { connectRedis, createQueues } from "./queues";
 import { setupShutdownHandler } from "./shutdown";
-
-const ROOT_LOGGER_KEY = "app";
-
-// JSON lines in production (one record per line for log shippers), human readable otherwise
-const consoleFormatter: logtape.ConsoleFormatter =
-	env.NODE_ENV === "production"
-		? (record) => [logtape.jsonLinesFormatter(record).trimEnd()]
-		: logtape.defaultConsoleFormatter;
 
 async function main() {
 	const startTime = Date.now();
 
-	await logtape.configure({
-		sinks: {
-			console: redactByField(
-				logtape.getConsoleSink({
-					formatter: redactByPattern(consoleFormatter, [JWT_PATTERN]),
-				}),
-				[...DEFAULT_REDACT_FIELDS, "private_key"],
-			),
-		},
-		loggers: [
-			{
-				category: [ROOT_LOGGER_KEY],
-				sinks: ["console"],
-				lowestLevel: env.LOG_LEVEL,
-			},
-			{
-				category: ["logtape", "meta"],
-				sinks: ["console"],
-				lowestLevel: env.LOG_LEVEL,
-			},
-		],
-	});
-
-	const logger = logtape.getLogger(ROOT_LOGGER_KEY);
+	const logger = await configureLogging();
 
 	logger.info(`App version: ${process.env.npm_package_version}`);
 	logger.info(`Environment: ${env.NODE_ENV} | Log level: ${env.LOG_LEVEL}`);
@@ -95,20 +57,13 @@ async function main() {
 	const processors = new Map<string, FileProcessor>();
 
 	logger.info(`Connecting to redis at ${config.server.queue.redis.url} ...`);
-
-	const redisOptions: RedisOptions = { maxRetriesPerRequest: null };
-	const redisConnection = new IORedis(config.server.queue.redis.url, redisOptions);
-
-	await new Promise<void>((resolve, reject) => {
-		redisConnection.once("ready", resolve);
-		redisConnection.once("error", reject);
-	});
+	const redisConnection = await connectRedis(config.server.queue.redis.url);
 
 	logger.info("Initializing queues ...");
-	const queueOptions: bullmq.QueueOptions = {
-		connection: redisConnection,
-		prefix: config.server.queue.redis.prefix,
-	};
+	const { collectChangesQueue, processChangesQueue, renewChannelQueue } = createQueues(
+		redisConnection,
+		config.server.queue.redis.prefix,
+	);
 
 	const workerOptions: bullmq.WorkerOptions = {
 		connection: redisConnection,
@@ -116,29 +71,6 @@ async function main() {
 		removeOnComplete: { count: 100 },
 		removeOnFail: { count: 10 },
 	};
-
-	const collectChangesQueue = new bullmq.Queue<CollectChangesJobPayload, CollectChangesJobResult>("collect-changes", {
-		...queueOptions,
-		defaultJobOptions: {
-			removeOnComplete: { age: 60 * 60 * 24 * 7 }, // 1 Week
-		},
-	});
-
-	const processChangesQueue = new bullmq.Queue<ProcessChangesJobPayload, ProcessChangesJobResult>("process-changes", {
-		...queueOptions,
-		defaultJobOptions: {
-			removeOnComplete: { age: 60 * 60 * 24 * 7 }, // 1 Week
-		},
-	});
-
-	const renewChannelQueue = new bullmq.Queue<RenewChannelJobPayload>("renew-channel", {
-		...queueOptions,
-		defaultJobOptions: {
-			removeOnComplete: { age: 60 * 60 * 24 }, // 1 Day
-			attempts: 3,
-			backoff: { type: "exponential", delay: 5_000 },
-		},
-	});
 
 	const collectChangesWorker = new bullmq.Worker(
 		collectChangesQueue.name,

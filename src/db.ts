@@ -14,7 +14,7 @@ export const openDatabase = (dataPath: string): Db => {
 	return db;
 };
 
-const migrate = (db: Db) => {
+export const migrate = (db: Db) => {
 	db.exec(`
 		CREATE TABLE IF NOT EXISTS change_tokens (
 			account_id TEXT NOT NULL,
