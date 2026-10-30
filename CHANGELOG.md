@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/kyromoto/paperfeed/compare/v1.12.0...v1.13.0) (2026-10-30)
+
+
+### Features
+
+* default the queue prefix in Redis to paperfeed ([c64e7f8](https://github.com/kyromoto/paperfeed/commit/c64e7f8e5193373a40582a9f0e7a8d7624a49f2b))
+
 # [1.12.0](https://github.com/kyromoto/paperfeed/compare/v1.11.1...v1.12.0) (2026-10-29)
 
 
