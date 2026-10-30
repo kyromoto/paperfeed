@@ -6,6 +6,33 @@ Wird nicht im Backend umgesetzt. Bull Board läuft als **separater Container** (
 
 ---
 
+## Feature — Admin-WebUI mit Queue-Statistik (SolidJS)
+
+**Status:** Idee, Details sind noch zu spezifizieren (vor der Umsetzung als OpenSpec-Change ausarbeiten).
+
+**Ziel:** Eine Admin-Weboberfläche, die für **jede Queue** (`collect-changes`, `process-changes`, `renew-channel`, `notifications`) ein zeitbasiertes **Balkendiagramm** zeigt: wie viele Jobs pro Zeitabschnitt gelaufen sind, z. B. pro 5 Minuten. Damit lässt sich Last, Durchsatz und ein Ausfall über die Zeit erkennen, was Bull Board (Momentaufnahme, Jobliste) nicht zeigt.
+
+**Festgelegt:**
+- Die **Zeitauflösung (Granularität) ist einstellbar** (z. B. 1, 5, 15, 60 Minuten) und gilt für die Darstellung.
+- Die Oberfläche wird mit **SolidJS** gebaut.
+
+**Noch zu spezifizieren (offene Fragen):**
+- **Wo läuft sie?** Bull Board wurde bewusst nicht in die App eingebaut (keine unauthentifizierte Admin-UI auf dem öffentlich erreichbaren Webhook-Port). Naheliegend ist ein eigener Prozess/Container im internen Docker-Netz, der nur Redis liest (passt zu 12-Factor XII und dem Eintrag „Prozesstypen“). Alternativ ein getrennter Port der App. Entscheidung offen.
+- **Zugriffsschutz:** keine Anmeldung (nur internes Netz, wie Bull Board) oder einfache Anmeldung?
+- **Datenquelle:** Optionen sind (a) die BullMQ-Metriken (`Queue.getMetrics`, braucht das Worker-Setting `metrics` mit `maxDataPoints`, liefert Zähler pro Minute für `completed` und `failed`, aggregierbar auf größere Zeitabschnitte), (b) Auswertung von `finishedOn` der aufbewahrten Jobs (Aufbewahrung ist begrenzt: 7 Tage bzw. Anzahl), (c) eigene Zähler in Redis oder SQLite. Zu prüfen: Aufwand, Genauigkeit, Aufbewahrungsdauer.
+- **Inhalt der Balken:** nur abgeschlossene Jobs oder getrennt abgeschlossen/fehlgeschlagen (gestapelt)? Laufzeiten (Dauer) zusätzlich?
+- **Zeitraum:** wählbar (letzte Stunde, 24 Stunden, 7 Tage)? Standardwerte? Automatische Aktualisierung?
+- **Weitere Ansichten:** Gesamtübersicht über alle Queues, Aktualisierung in Echtzeit, Auswahl einzelner Queues, Anzeige der aktuellen Zähler (wartend/aktiv/fehlgeschlagen)?
+- **Technik:** Wie wird SolidJS gebaut und ausgeliefert (Vite, eigenes Paket im Repo oder getrennter Ordner, statische Auslieferung), Diagrammbibliothek oder eigenes SVG, Anbindung per kleiner JSON-API.
+- **Konfiguration:** Werte (Port, Redis-Prefix, Standardgranularität) per Umgebungsvariablen nach dem bestehenden Muster; Prefix muss dem der App entsprechen (`SERVER_QUEUE_REDIS_PREFIX`).
+
+**Hinweise:**
+- Die Oberfläche soll **nur lesen** (keine Aktionen auf Queues oder Jobs), Wartungsaktionen bleiben in der Admin-CLI.
+- Ein neuer Container und ein eigener Build bedeuten zusätzliche Pflege (Image, CI, Abhängigkeiten); das ist bei der Entscheidung über den Ort zu berücksichtigen.
+- Mehrere Queues, neue Queues später (wie `notifications`) sollen ohne Neustart erscheinen, anders als bei Bull Board, das die Queue-Liste nur beim Start liest.
+
+---
+
 # 12-Factor
 
 Aufgaben aus [`12-FACTOR-REPORT.md`](12-FACTOR-REPORT.md). Beim Umsetzen eines Punkts den Report aktualisieren (Status, Ist-Zustand, Gesamtergebnis).
