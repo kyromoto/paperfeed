@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/kyromoto/paperfeed/compare/v1.11.1...v1.12.0) (2026-10-29)
+
+
+### Features
+
+* deliver failure notifications through a retrying queue ([c35c1cd](https://github.com/kyromoto/paperfeed/commit/c35c1cd452dba84ec4b3278e51f1b42dc0178b14))
+
 ## [1.11.1](https://github.com/kyromoto/paperfeed/compare/v1.11.0...v1.11.1) (2026-10-29)
 
 
