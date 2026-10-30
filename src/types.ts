@@ -11,7 +11,7 @@ export const Server = z.object({
 	queue: z.object({
 		redis: z.object({
 			url: z.string().url(),
-			prefix: z.string().default("paperless-gdrive-link"),
+			prefix: z.string().default("paperfeed"),
 		}),
 		concurrency: z
 			.object({

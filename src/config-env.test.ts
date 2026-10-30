@@ -92,10 +92,28 @@ describe("composeConfig", () => {
 		const config = composeConfig(ACCOUNTS, REQUIRED_ENV);
 
 		expect(config.server.http.port).toBe(3000);
-		expect(config.server.queue.redis.prefix).toBe("paperless-gdrive-link");
+		expect(config.server.queue.redis.prefix).toBe("paperfeed");
 		expect(config.server.queue.concurrency).toEqual({ collect: 5, process: 1, renew: 1 });
 		expect(config.server.queue.debounce.collectChangesSec).toBe(5);
 		expect(config.server.queue.renewPollIntervalSec).toBe(15);
+	});
+
+	it("takes the redis prefix of the queues from the environment", () => {
+		const config = composeConfig(ACCOUNTS, { ...REQUIRED_ENV, SERVER_QUEUE_REDIS_PREFIX: "custom" });
+
+		expect(config.server.queue.redis.prefix).toBe("custom");
+	});
+
+	it("lets the former default prefix be kept explicitly", () => {
+		const config = composeConfig(ACCOUNTS, { ...REQUIRED_ENV, SERVER_QUEUE_REDIS_PREFIX: "paperless-gdrive-link" });
+
+		expect(config.server.queue.redis.prefix).toBe("paperless-gdrive-link");
+	});
+
+	it("falls back to the default redis prefix for an empty variable", () => {
+		const config = composeConfig(ACCOUNTS, { ...REQUIRED_ENV, SERVER_QUEUE_REDIS_PREFIX: "" });
+
+		expect(config.server.queue.redis.prefix).toBe("paperfeed");
 	});
 
 	it("leaves notifications off when the webhook variable is not set", () => {

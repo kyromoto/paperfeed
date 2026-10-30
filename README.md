@@ -132,7 +132,7 @@ Optional: set `SERVER_NOTIFICATIONS_WEBHOOK_URL` to a generic webhook (for examp
 The app has no admin UI of its own. Run [Bull Board](https://github.com/felixmosh/bull-board) as a separate container next to Redis (see `docker-compose.example.yml`, image [`venatum/bull-board`](https://github.com/Venatum/bull-board-docker)) and keep it on the internal Docker network only. It has no authentication unless you set `USER_LOGIN` and `USER_PASSWORD`:
 
 - `REDIS_HOST` / `REDIS_PORT` point to the Redis used by the app.
-- `BULL_PREFIX` must equal `SERVER_QUEUE_REDIS_PREFIX` (default `paperless-gdrive-link`).
+- `BULL_PREFIX` must equal `SERVER_QUEUE_REDIS_PREFIX` (default `paperfeed`; it was `paperless-gdrive-link` before 1.13, see [the migration note](docs/configuration.md#queue-prefix-in-redis)).
 - It shows `collect-changes`, `process-changes`, `renew-channel` and, when notifications are configured, `notifications`, including retries, failed channel renewals and messages that could not be delivered.
 
 Use a Bull Board image that is built on a current BullMQ (the app uses BullMQ 5). Images built on an old BullMQ, such as `deadly0/bull-board` (2021), list the queues but show no jobs and zero counts.

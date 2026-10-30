@@ -30,7 +30,7 @@ The variable name is the key path in upper case, joined with `_` (`camelCase` be
 | `SERVER_DATA_PATH` | `server.data_path` | path | **yes** | – | Directory for the SQLite database (`db/`) and temporary files (`files/`). Mount a volume here |
 | `SERVER_HTTP_PORT` | `server.http.port` | number ≥ 1024 | no | `3000` | Port of the HTTP server (`/webhook`, `/health`) |
 | `SERVER_QUEUE_REDIS_URL` | `server.queue.redis.url` | URL | **yes** | – | Redis connection, e.g. `redis://redis:6379` (may contain credentials) |
-| `SERVER_QUEUE_REDIS_PREFIX` | `server.queue.redis.prefix` | string | no | `paperless-gdrive-link` | BullMQ key prefix. Bull Board must use the same value as `BULL_PREFIX` |
+| `SERVER_QUEUE_REDIS_PREFIX` | `server.queue.redis.prefix` | string | no | `paperfeed` | BullMQ key prefix of all queues. Bull Board must use the same value as `BULL_PREFIX`, see [Queue prefix in Redis](#queue-prefix-in-redis) |
 | `SERVER_QUEUE_CONCURRENCY_COLLECT` | `server.queue.concurrency.collect` | number ≥ 1 | no | `5` | Parallel `collect-changes` jobs |
 | `SERVER_QUEUE_CONCURRENCY_PROCESS` | `server.queue.concurrency.process` | number ≥ 1 | no | `1` | Parallel `process-changes` jobs. Keep at `1` unless you know what you do (shared file store) |
 | `SERVER_QUEUE_CONCURRENCY_RENEW` | `server.queue.concurrency.renew` | number ≥ 1 | no | `1` | Parallel `renew-channel` jobs |
@@ -40,6 +40,15 @@ The variable name is the key path in upper case, joined with `_` (`camelCase` be
 | `SERVER_NOTIFICATIONS_WEBHOOK_URL` | `server.notifications.webhook_url` | URL | no | – (off) | Generic webhook (e.g. Matrix Hookshot) that receives a message when a job has failed for good. The URL is a secret, see [Notifications](#notifications) |
 
 A `server:` block in the YAML is **not accepted any more**: the app refuses to start and lists the variable to set for each key.
+
+## Queue prefix in Redis
+
+All queues (`collect-changes`, `process-changes`, `renew-channel`, `notifications`) live under the Redis key prefix `SERVER_QUEUE_REDIS_PREFIX`, default `paperfeed`. Bull Board needs the same value as `BULL_PREFIX`, and it reads its queue list only when the container starts, so restart it after changing the prefix or after an update that adds a queue.
+
+**Migration:** before version 1.13 the default was `paperless-gdrive-link`. If you never set the variable, an update moves all queues to new keys and the old ones are no longer read:
+
+- **Keep the old keys:** set `SERVER_QUEUE_REDIS_PREFIX=paperless-gdrive-link` (and leave `BULL_PREFIX` as it is). Nothing changes.
+- **Switch to the new default:** let running and waiting jobs finish (Bull Board), update the app, set `BULL_PREFIX=paperfeed` and restart Bull Board. Not lost: files in the source folder (the startup scan queues them again), the Drive change token (SQLite) and the webhook channel (the scheduler renews it). Lost: notifications that were not delivered yet and the job history in Bull Board. The old keys stay in Redis until you remove them, for example by listing them with `redis-cli --scan --pattern 'paperless-gdrive-link:*'` and deleting what you find; the app never deletes them.
 
 ## Notifications
 

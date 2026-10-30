@@ -39,8 +39,8 @@ services:
     environment:
       REDIS_HOST: redis
       REDIS_PORT: "6379"
-      # must match SERVER_QUEUE_REDIS_PREFIX (defaults to paperless-gdrive-link)
-      BULL_PREFIX: paperless-gdrive-link
+      # must match SERVER_QUEUE_REDIS_PREFIX (defaults to paperfeed)
+      BULL_PREFIX: paperfeed
     depends_on:
       redis:
         condition: service_healthy
